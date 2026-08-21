@@ -4,7 +4,7 @@
 return [
     'APP_ENV' => 'production',
     'SERVER_BASE_URL' => getenv('SERVER_BASE_URL') ?: 'https://ethnicboost.com',
-    'DB_HOST' => getenv('DB_HOST') ?: '127.0.0.1',
+    'DB_HOST' => getenv('DB_HOST') ?: 'localhost',
     'DB_PORT' => getenv('DB_PORT') ?: '3306',
     'DB_DATABASE' => getenv('DB_DATABASE') ?: 'employee_monitor',
     'DB_USERNAME' => getenv('DB_USERNAME') ?: 'employee_monitor',

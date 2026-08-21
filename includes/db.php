@@ -6,29 +6,39 @@ require_once __DIR__ . '/../config/config.php';
 function getDbConnection() {
     static $pdo = null;
     if ($pdo === null) {
-        $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4";
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 5
         ];
-        try {
-            $pdo = new PDO($dsn, DB_USERNAME, DB_PASSWORD, $options);
-        } catch (PDOException $e) {
-            // Try fallback between 127.0.0.1 and localhost
-            $altHost = (DB_HOST === '127.0.0.1') ? 'localhost' : ((DB_HOST === 'localhost') ? '127.0.0.1' : null);
-            if ($altHost !== null) {
-                try {
-                    $altDsn = "mysql:host={$altHost};port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4";
-                    $pdo = new PDO($altDsn, DB_USERNAME, DB_PASSWORD, $options);
-                } catch (PDOException $e2) {
-                    // Both primary and fallback failed
-                    $pdo = null;
-                }
-            }
 
-            if ($pdo === null) {
-                // Detailed Audit Server-Side Error Logging (NEVER log passwords, keys or tokens)
+        $dsnList = [
+            "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4"
+        ];
+
+        $altHost = (DB_HOST === '127.0.0.1') ? 'localhost' : '127.0.0.1';
+        $dsnList[] = "mysql:host=" . $altHost . ";port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4";
+
+        if (file_exists('/var/lib/mysql/mysql.sock')) {
+            $dsnList[] = "mysql:unix_socket=/var/lib/mysql/mysql.sock;dbname=" . DB_DATABASE . ";charset=utf8mb4";
+        }
+        if (file_exists('/tmp/mysql.sock')) {
+            $dsnList[] = "mysql:unix_socket=/tmp/mysql.sock;dbname=" . DB_DATABASE . ";charset=utf8mb4";
+        }
+
+        $lastException = null;
+        foreach ($dsnList as $dsn) {
+            try {
+                $pdo = new PDO($dsn, DB_USERNAME, DB_PASSWORD, $options);
+                break;
+            } catch (PDOException $e) {
+                $lastException = $e;
+            }
+        }
+
+        if ($pdo === null && $lastException !== null) {
+            // Detailed Audit Server-Side Error Logging (NEVER log passwords, keys or tokens)
             $timestamp = date('Y-m-d H:i:s');
             $requestUri = $_SERVER['REQUEST_URI'] ?? 'CLI';
             $phpVersion = PHP_VERSION;
@@ -44,12 +54,12 @@ function getDbConnection() {
                 $dbName,
                 $phpVersion,
                 $requestUri,
-                $e->getMessage()
+                $lastException->getMessage()
             );
             error_log($logMessage);
 
             if (php_sapi_name() === 'cli') {
-                die("Database Connection Error [{$env}]: " . $e->getMessage() . "\n");
+                die("Database Connection Error [{$env}]: " . $lastException->getMessage() . "\n");
             }
 
             // Determine if request expects JSON (API endpoints) or HTML page
@@ -71,11 +81,11 @@ function getDbConnection() {
             if (APP_ENV === 'development') {
                 if ($isJsonRequest) {
                     header('Content-Type: application/json');
-                    echo json_encode(["success" => false, "error" => "Database Connection Error: " . $e->getMessage()]);
+                    echo json_encode(["success" => false, "error" => "Database Connection Error: " . $lastException->getMessage()]);
                 } else {
                     echo "<!DOCTYPE html><html><head><title>Database Error</title></head><body style='font-family:sans-serif; padding:2rem;'>";
                     echo "<h1>Database Connection Error</h1>";
-                    echo "<p style='color:red; font-weight:bold;'>" . htmlspecialchars($e->getMessage()) . "</p>";
+                    echo "<p style='color:red; font-weight:bold;'>" . htmlspecialchars($lastException->getMessage()) . "</p>";
                     echo "<p>Environment: <code>" . htmlspecialchars($env) . "</code> | Host: <code>" . htmlspecialchars($dbHost) . "</code></p>";
                     echo "</body></html>";
                 }
@@ -90,8 +100,7 @@ function getDbConnection() {
                     echo "</body></html>";
                 }
             }
-                exit;
-            }
+            exit;
         }
     }
     return $pdo;

@@ -5,23 +5,31 @@ require_once __DIR__ . '/config/config.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-$status = "ok";
+$status = "error";
 $dbStatus = "disconnected";
 
-$hostsToTry = [DB_HOST];
-$altHost = (DB_HOST === '127.0.0.1') ? 'localhost' : ((DB_HOST === 'localhost') ? '127.0.0.1' : null);
-if ($altHost !== null && !in_array($altHost, $hostsToTry)) {
-    $hostsToTry[] = $altHost;
+$options = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_TIMEOUT => 3
+];
+
+$dsnList = [
+    "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4"
+];
+
+$altHost = (DB_HOST === '127.0.0.1') ? 'localhost' : '127.0.0.1';
+$dsnList[] = "mysql:host=" . $altHost . ";port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4";
+
+if (file_exists('/var/lib/mysql/mysql.sock')) {
+    $dsnList[] = "mysql:unix_socket=/var/lib/mysql/mysql.sock;dbname=" . DB_DATABASE . ";charset=utf8mb4";
+}
+if (file_exists('/tmp/mysql.sock')) {
+    $dsnList[] = "mysql:unix_socket=/tmp/mysql.sock;dbname=" . DB_DATABASE . ";charset=utf8mb4";
 }
 
-foreach ($hostsToTry as $targetHost) {
+foreach ($dsnList as $tryDsn) {
     try {
-        $dsn = "mysql:host=" . $targetHost . ";port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4";
-        $options = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_TIMEOUT => 3
-        ];
-        $pdo = new PDO($dsn, DB_USERNAME, DB_PASSWORD, $options);
+        $pdo = new PDO($tryDsn, DB_USERNAME, DB_PASSWORD, $options);
         $stmt = $pdo->query("SELECT 1");
         if ($stmt) {
             $dbStatus = "connected";
@@ -29,9 +37,7 @@ foreach ($hostsToTry as $targetHost) {
             break;
         }
     } catch (Exception $e) {
-        $status = "error";
-        $dbStatus = "disconnected";
-        error_log("[TeamTrace][HealthCheck] DB Connection failed on host {$targetHost}: " . $e->getMessage());
+        error_log("[TeamTrace][HealthCheck] Connection failed for DSN ({$tryDsn}): " . $e->getMessage());
     }
 }
 
