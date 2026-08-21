@@ -2,45 +2,54 @@
 // config/environment.php - Central Environment Resolver & Configuration Loader
 
 function detectEnvironment(): string {
-    // 1. HTTP Host detection for Web requests (highest priority for browser)
-    $host = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? '');
-    if (!empty($host)) {
-        $hostName = strtolower(explode(':', $host)[0]);
-        if (
-            $hostName === 'localhost' ||
-            $hostName === '127.0.0.1' ||
-            $hostName === '::1' ||
-            str_ends_with($hostName, '.local')
-        ) {
-            return 'local';
-        }
-        return 'production';
-    }
-
-    // 2. Explicit environment setting from system env / .env
+    // Priority 1: Explicit APP_ENV environment variable (from system / web server / .env)
     $appEnv = getenv('APP_ENV') ?: ($_SERVER['APP_ENV'] ?? ($_ENV['APP_ENV'] ?? ''));
     if (!empty($appEnv)) {
         $normalized = strtolower(trim($appEnv));
-        if (in_array($normalized, ['local', 'development', 'dev', 'testing'])) {
-            return 'local';
-        }
         if (in_array($normalized, ['production', 'prod', 'live'])) {
             return 'production';
         }
+        if (in_array($normalized, ['local', 'development', 'dev', 'testing'])) {
+            return 'local';
+        }
     }
 
-    // 3. CLI / Cron execution detection
-    // On macOS local development machine, return local if local.php exists
+    // Priority 2: Hostname detection for Web requests (check HTTP_HOST and HTTP_X_FORWARDED_HOST)
+    $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? ($_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? ''));
+    if (!empty($host)) {
+        $hostName = strtolower(explode(':', $host)[0]);
+        
+        // If host is explicitly a public domain or IP (not localhost/127.0.0.1), return production
+        if ($hostName !== 'localhost' && $hostName !== '127.0.0.1' && $hostName !== '::1' && !str_ends_with($hostName, '.local')) {
+            return 'production';
+        }
+
+        // If host is localhost/127.0.0.1 on macOS, return local
+        if (
+            ($hostName === 'localhost' || $hostName === '127.0.0.1' || $hostName === '::1' || str_ends_with($hostName, '.local'))
+            && PHP_OS_FAMILY === 'Darwin'
+        ) {
+            return 'local';
+        }
+    }
+
+    // Priority 3: OS / Production Server Detection
+    // On Linux / CentOS VPS, default to production if production.php exists
+    if (PHP_OS_FAMILY === 'Linux' && file_exists(__DIR__ . '/environments/production.php')) {
+        return 'production';
+    }
+
+    // On macOS local development machine, default to local if local.php exists
     if (PHP_OS_FAMILY === 'Darwin' && file_exists(__DIR__ . '/environments/local.php')) {
         return 'local';
     }
 
-    // On Linux / Production VPS, if production.php exists, default to production
+    // Fallback: Check for production configuration file
     if (file_exists(__DIR__ . '/environments/production.php')) {
         return 'production';
     }
 
-    return file_exists(__DIR__ . '/environments/local.php') ? 'local' : 'production';
+    return 'local';
 }
 
 function loadEnvironmentConfig(): array {
