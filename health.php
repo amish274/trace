@@ -8,21 +8,31 @@ header('Content-Type: application/json; charset=utf-8');
 $status = "ok";
 $dbStatus = "disconnected";
 
-try {
-    $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4";
-    $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_TIMEOUT => 3
-    ];
-    $pdo = new PDO($dsn, DB_USERNAME, DB_PASSWORD, $options);
-    $stmt = $pdo->query("SELECT 1");
-    if ($stmt) {
-        $dbStatus = "connected";
+$hostsToTry = [DB_HOST];
+$altHost = (DB_HOST === '127.0.0.1') ? 'localhost' : ((DB_HOST === 'localhost') ? '127.0.0.1' : null);
+if ($altHost !== null && !in_array($altHost, $hostsToTry)) {
+    $hostsToTry[] = $altHost;
+}
+
+foreach ($hostsToTry as $targetHost) {
+    try {
+        $dsn = "mysql:host=" . $targetHost . ";port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4";
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_TIMEOUT => 3
+        ];
+        $pdo = new PDO($dsn, DB_USERNAME, DB_PASSWORD, $options);
+        $stmt = $pdo->query("SELECT 1");
+        if ($stmt) {
+            $dbStatus = "connected";
+            $status = "ok";
+            break;
+        }
+    } catch (Exception $e) {
+        $status = "error";
+        $dbStatus = "disconnected";
+        error_log("[TeamTrace][HealthCheck] DB Connection failed on host {$targetHost}: " . $e->getMessage());
     }
-} catch (Exception $e) {
-    $status = "error";
-    $dbStatus = "disconnected";
-    error_log("[TeamTrace][HealthCheck] DB Connection failed: " . $e->getMessage());
 }
 
 if ($status === "error") {

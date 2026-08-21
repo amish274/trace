@@ -15,7 +15,20 @@ function getDbConnection() {
         try {
             $pdo = new PDO($dsn, DB_USERNAME, DB_PASSWORD, $options);
         } catch (PDOException $e) {
-            // Detailed Audit Server-Side Error Logging (NEVER log passwords, keys or tokens)
+            // Try fallback between 127.0.0.1 and localhost
+            $altHost = (DB_HOST === '127.0.0.1') ? 'localhost' : ((DB_HOST === 'localhost') ? '127.0.0.1' : null);
+            if ($altHost !== null) {
+                try {
+                    $altDsn = "mysql:host={$altHost};port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4";
+                    $pdo = new PDO($altDsn, DB_USERNAME, DB_PASSWORD, $options);
+                } catch (PDOException $e2) {
+                    // Both primary and fallback failed
+                    $pdo = null;
+                }
+            }
+
+            if ($pdo === null) {
+                // Detailed Audit Server-Side Error Logging (NEVER log passwords, keys or tokens)
             $timestamp = date('Y-m-d H:i:s');
             $requestUri = $_SERVER['REQUEST_URI'] ?? 'CLI';
             $phpVersion = PHP_VERSION;
@@ -77,7 +90,8 @@ function getDbConnection() {
                     echo "</body></html>";
                 }
             }
-            exit;
+                exit;
+            }
         }
     }
     return $pdo;
