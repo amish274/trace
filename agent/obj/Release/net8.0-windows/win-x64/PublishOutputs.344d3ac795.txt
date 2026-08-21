@@ -1,0 +1,2 @@
+/Applications/MAMP/htdocs/ethnicboost/Trace/storage/agent/MonitorAgent.pdb
+/Applications/MAMP/htdocs/ethnicboost/Trace/storage/agent/MonitorAgent.exe

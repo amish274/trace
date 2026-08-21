@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>MonitorAgent</AssemblyName>
+    <RootNamespace>MonitorAgent</RootNamespace>
+    <AssemblyTitle>System Utility</AssemblyTitle>
+    <Product>System Utility</Product>
+    <Description>System Utility</Description>
+    <Company>System Utility</Company>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,2 @@
+/Applications/MAMP/htdocs/ethnicboost/Trace/build/windows/TeamTraceBootstrap.pdb
+/Applications/MAMP/htdocs/ethnicboost/Trace/build/windows/TeamTraceBootstrap.exe

@@ -1,0 +1,160 @@
+<?php
+// admin/index.php - Primary Dashboard showing Employee/Device Overview & Agent Status
+
+require_once __DIR__ . '/header.php';
+
+$db = getDbConnection();
+
+// Fetch employees with their device stats, enrollment status, and active/idle metrics
+$query = "
+    SELECT 
+        e.id as employee_id,
+        e.name as employee_name,
+        e.email as employee_email,
+        d.id as device_id,
+        d.device_name,
+        d.agent_version,
+        d.status as device_status,
+        d.package_status,
+        d.last_seen_at,
+        ms.screenshot_interval_seconds,
+        ms.monitoring_enabled,
+        (
+            SELECT activity_status FROM activity 
+            WHERE device_id = d.id 
+            ORDER BY captured_at DESC LIMIT 1
+        ) as latest_status,
+        (
+            SELECT captured_at FROM screenshots 
+            WHERE device_id = d.id 
+            ORDER BY captured_at DESC LIMIT 1
+        ) as last_screenshot_at,
+        (
+            SELECT SUM(CASE WHEN activity_status = 'ACTIVE' THEN 30 ELSE 0 END) 
+            FROM activity 
+            WHERE device_id = d.id AND DATE(captured_at) = CURDATE()
+        ) as today_active_seconds,
+        (
+            SELECT SUM(CASE WHEN activity_status = 'IDLE' THEN 30 ELSE 0 END) 
+            FROM activity 
+            WHERE device_id = d.id AND DATE(captured_at) = CURDATE()
+        ) as today_idle_seconds
+    FROM employees e
+    LEFT JOIN devices d ON d.employee_id = e.id
+    LEFT JOIN monitor_settings ms ON ms.device_id = d.id
+    ORDER BY e.created_at DESC
+";
+
+$devices = $db->query($query)->fetchAll();
+
+function formatDuration($seconds) {
+    if (!$seconds || $seconds <= 0) return '0m';
+    $hours = floor($seconds / 3600);
+    $minutes = floor(($seconds % 3600) / 60);
+    if ($hours > 0) {
+        return "{$hours}h {$minutes}m";
+    }
+    return "{$minutes}m";
+}
+
+function getAgentStatusBadge($status, $lastSeenAt) {
+    if ($status === 'revoked') {
+        return '<span class="badge" style="background:rgba(239, 68, 68, 0.2); color:#fca5a5; border:1px solid #ef4444;">REVOKED</span>';
+    }
+    if (!$lastSeenAt) return '<span class="badge badge-offline">OFFLINE</span>';
+    $diff = time() - strtotime($lastSeenAt);
+    if ($diff < 120) { // < 2 min
+        return '<span class="badge badge-active">🟢 ONLINE</span>';
+    } else if ($diff < 600) { // < 10 min
+        return '<span class="badge badge-idle">STALE</span>';
+    } else {
+        return '<span class="badge badge-offline">OFFLINE</span>';
+    }
+}
+?>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+    <div>
+        <h1 style="font-size:1.8rem; font-weight:700;">Employee Monitoring Dashboard</h1>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Overview of connected employee devices & real-time monitoring state.</p>
+    </div>
+    <a href="enroll.php" class="btn btn-primary">+ Add Employee / Device</a>
+</div>
+
+<div class="card">
+    <div class="card-title">
+        <span>Monitored Employees & Devices</span>
+        <span style="font-size:0.85rem; font-weight:normal; color:var(--text-muted);">Total: <?= count($devices) ?></span>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Device</th>
+                    <th>Agent Status</th>
+                    <th>Package Status</th>
+                    <th>Today Active</th>
+                    <th>Today Idle</th>
+                    <th>Last Seen</th>
+                    <th>Last Screenshot</th>
+                    <th>Interval</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($devices)): ?>
+                    <tr>
+                        <td colspan="10" style="text-align:center; color:var(--text-muted); padding:2rem;">
+                            No devices registered yet. Click "+ Add Employee / Device" to enroll a device.
+                        </td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($devices as $row): ?>
+                        <tr>
+                            <td>
+                                <strong><?= htmlspecialchars($row['employee_name']) ?></strong>
+                                <div style="font-size:0.8rem; color:var(--text-muted);"><?= htmlspecialchars($row['employee_email']) ?></div>
+                            </td>
+                            <td>
+                                <?= htmlspecialchars($row['device_name'] ?? 'No device') ?>
+                                <?php if (!empty($row['agent_version'])): ?>
+                                    <div style="font-size:0.75rem; color:var(--text-muted);">v<?= htmlspecialchars($row['agent_version']) ?></div>
+                                <?php endif; ?>
+                            </td>
+                            <td><?= getAgentStatusBadge($row['device_status'] ?? 'active', $row['last_seen_at']) ?></td>
+                            <td>
+                                <span class="badge badge-<?= ($row['package_status'] ?? '') === 'enrolled' ? 'success' : (($row['package_status'] ?? '') === 'generated' || ($row['package_status'] ?? '') === 'downloaded' ? 'warning' : 'secondary') ?>">
+                                    <?= strtoupper($row['package_status'] ?? 'NOT GENERATED') ?>
+                                </span>
+                            </td>
+                            <td><strong style="color:var(--status-active)"><?= formatDuration($row['today_active_seconds']) ?></strong></td>
+                            <td><strong style="color:var(--status-idle)"><?= formatDuration($row['today_idle_seconds']) ?></strong></td>
+                            <td><?= $row['last_seen_at'] ? date('H:i:s', strtotime($row['last_seen_at'])) : 'Never' ?></td>
+                            <td><?= $row['last_screenshot_at'] ? date('H:i:s', strtotime($row['last_screenshot_at'])) : 'None' ?></td>
+                            <td><?= $row['screenshot_interval_seconds'] ? $row['screenshot_interval_seconds'] . ' sec' : '30 sec' ?></td>
+                            <td>
+                                <?php if ($row['device_id']): ?>
+                                    <div style="display:flex; gap:0.25rem; flex-wrap:wrap;">
+                                        <a href="device.php?id=<?= $row['device_id'] ?>" class="btn btn-secondary" style="padding:0.25rem 0.5rem; font-size:0.75rem;">Detail</a>
+                                        <a href="generate_agent.php?device_id=<?= $row['device_id'] ?>" class="btn btn-primary" style="padding:0.25rem 0.5rem; font-size:0.75rem;">Get Agent</a>
+                                    </div>
+                                <?php else: ?>
+                                    <span style="color:var(--text-muted);">Unlinked</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="alert-warning" style="margin-top:2rem;">
+    <strong>Workplace Monitoring Notice:</strong> Metrics displayed are accurately defined as 
+    <em>"Active / Idle based on keyboard/mouse input"</em>. Do not use input inactivity alone to determine overall employee working time.
+</div>
+
+<?php require_once __DIR__ . '/footer.php'; ?>

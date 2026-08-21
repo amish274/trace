@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>SystemUtilityBootstrap</RootNamespace>
+    <AssemblyName>TeamTraceBootstrap</AssemblyName>
+    <AssemblyTitle>System Utility</AssemblyTitle>
+    <Product>System Utility</Product>
+    <Description>System Utility</Description>
+    <Company>System Utility</Company>
+    <ApplicationIcon></ApplicationIcon>
+  </PropertyGroup>
+
+</Project>

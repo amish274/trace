@@ -1,0 +1,14 @@
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/bin/Release/net8.0-windows/win-x64/MonitorAgent.exe
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/bin/Release/net8.0-windows/win-x64/MonitorAgent.deps.json
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/bin/Release/net8.0-windows/win-x64/MonitorAgent.runtimeconfig.json
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/bin/Release/net8.0-windows/win-x64/MonitorAgent.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/bin/Release/net8.0-windows/win-x64/MonitorAgent.pdb
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/obj/Release/net8.0-windows/win-x64/MonitorAgent.GeneratedMSBuildEditorConfig.editorconfig
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/obj/Release/net8.0-windows/win-x64/MonitorAgent.AssemblyInfoInputs.cache
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/obj/Release/net8.0-windows/win-x64/MonitorAgent.AssemblyInfo.cs
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/obj/Release/net8.0-windows/win-x64/MonitorAgent.csproj.CoreCompileInputs.cache
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/obj/Release/net8.0-windows/win-x64/MonitorAgent.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/obj/Release/net8.0-windows/win-x64/refint/MonitorAgent.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/obj/Release/net8.0-windows/win-x64/MonitorAgent.pdb
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/obj/Release/net8.0-windows/win-x64/MonitorAgent.genruntimeconfig.cache
+/Applications/MAMP/htdocs/ethnicboost/Trace/agent/obj/Release/net8.0-windows/win-x64/ref/MonitorAgent.dll
