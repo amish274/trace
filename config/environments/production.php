@@ -8,7 +8,7 @@ return [
     'DB_PORT' => getenv('DB_PORT') ?: '3306',
     'DB_DATABASE' => getenv('DB_DATABASE') ?: 'employee_monitor',
     'DB_USERNAME' => getenv('DB_USERNAME') ?: 'employee_monitor',
-    'DB_PASSWORD' => getenv('DB_PASSWORD') ?: 'SyqZAZJ[Z8Y5dy(O',
+    'DB_PASSWORD' => getenv('DB_PASSWORD') ?: '4ckaCg6L3yeEgF9.',
     'APP_KEY' => getenv('APP_KEY') ?: 'kM;v~6[9#e[33sT6H(z@+8a4l@w-B5tT',
     'SCREENSHOT_STORAGE_PATH' => getenv('SCREENSHOT_STORAGE_PATH') ?: 'storage/screenshots'
 ];
