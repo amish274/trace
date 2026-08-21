@@ -1,0 +1,23 @@
+
+# Compiled Windows binaries
+*.exe
+
+# Build output
+/build/
+/storage/agent/
+/storage/packages/
+
+
+*.exe
+/build/
+/storage/agent/
+/storage/packages/
+
+
+# Generated Windows binaries
+*.exe
+
+# Build output
+/build/
+/storage/agent/
+/storage/packages/
