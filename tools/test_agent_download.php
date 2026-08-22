@@ -110,7 +110,7 @@ if ($isValidSig) {
 
 // 8. End-to-End Signed HTTP Download Test
 echo "[8/8] Testing end-to-end HTTP download via curl... ";
-$fullUrl = "http://127.0.0.1:8888/admin/" . $signedUrl;
+$fullUrl = SERVER_BASE_URL . "/admin/" . $signedUrl;
 $testOut = "/tmp/diagnostic_download_test.exe";
 
 $ch = curl_init($fullUrl);

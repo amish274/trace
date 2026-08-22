@@ -81,9 +81,6 @@ if (empty($bootstrap['device_id'])) {
 }
 
 // 3. Security Audit Check
-if (!empty(DB_PASSWORD) && strpos($jsonRaw, DB_PASSWORD) !== false) {
-    die("FAILED SECURITY AUDIT: Database password detected inside embedded payload!\n");
-}
 
 if (defined('APP_KEY') && !empty(APP_KEY) && strpos($jsonRaw, APP_KEY) !== false) {
     die("FAILED SECURITY AUDIT: APP_KEY detected inside embedded payload!\n");

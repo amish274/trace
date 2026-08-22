@@ -1,5 +1,7 @@
 <?php
-// config/config.php - Centralized Configuration Loader
+// config/config.php - Centralized Application Configuration
+
+require_once __DIR__ . '/../includes/db.php';
 
 // Helper function to parse .env file if available
 if (!function_exists('loadEnv')) {
@@ -24,23 +26,19 @@ if (!function_exists('loadEnv')) {
 // Load root .env file if present
 loadEnv(__DIR__ . '/../.env');
 
-// Load environment configuration resolver
-$envConfig = require __DIR__ . '/environment.php';
+$env = getDatabaseEnvironment();
 
-if (!defined('APP_ENV')) define('APP_ENV', $envConfig['APP_ENV'] ?? 'production');
-if (!defined('SERVER_BASE_URL')) define('SERVER_BASE_URL', rtrim($envConfig['SERVER_BASE_URL'] ?? 'http://127.0.0.1:8888', '/'));
+if (!defined('APP_ENV')) define('APP_ENV', $env);
+if (!defined('SERVER_BASE_URL')) {
+    $baseUrl = getenv('SERVER_BASE_URL') ?: ($env === 'local' ? 'http://127.0.0.1:8888' : 'https://ethnicboost.com/Trace');
+    define('SERVER_BASE_URL', rtrim($baseUrl, '/'));
+}
 
-if (!defined('DB_HOST')) define('DB_HOST', $envConfig['DB_HOST'] ?? '127.0.0.1');
-if (!defined('DB_PORT')) define('DB_PORT', $envConfig['DB_PORT'] ?? '3306');
-if (!defined('DB_DATABASE')) define('DB_DATABASE', $envConfig['DB_DATABASE'] ?? 'employee_monitor');
-if (!defined('DB_USERNAME')) define('DB_USERNAME', $envConfig['DB_USERNAME'] ?? 'employee_monitor');
-if (!defined('DB_PASSWORD')) define('DB_PASSWORD', $envConfig['DB_PASSWORD'] ?? '4ckaCg6L3yeEgF9.');
-
-if (!defined('APP_KEY')) define('APP_KEY', $envConfig['APP_KEY'] ?? 'default_secret_key_change_in_production');
-if (!defined('SCREENSHOT_STORAGE_PATH')) define('SCREENSHOT_STORAGE_PATH', __DIR__ . '/../' . ($envConfig['SCREENSHOT_STORAGE_PATH'] ?? 'storage/screenshots'));
+if (!defined('APP_KEY')) define('APP_KEY', getenv('APP_KEY') ?: 'default_secret_key_change_in_production');
+if (!defined('SCREENSHOT_STORAGE_PATH')) define('SCREENSHOT_STORAGE_PATH', __DIR__ . '/../' . (getenv('SCREENSHOT_STORAGE_PATH') ?: 'storage/screenshots'));
 
 // Error Display Settings based on Environment
-if (APP_ENV === 'development' || APP_ENV === 'local') {
+if (APP_ENV === 'local') {
     error_reporting(E_ALL);
     ini_set('display_errors', '1');
 } else {

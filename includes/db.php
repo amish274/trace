@@ -1,95 +1,124 @@
 <?php
 // includes/db.php - Centralized PDO Database Connection Helper
 
-require_once __DIR__ . '/../config/config.php';
-
-function getDbConnection() {
-    static $pdo = null;
-    if ($pdo === null) {
-        $options = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::ATTR_TIMEOUT => 5
-        ];
-
-        $dsnList = [
-            "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4"
-        ];
-
-        $altHost = (DB_HOST === '127.0.0.1') ? 'localhost' : '127.0.0.1';
-        $dsnList[] = "mysql:host=" . $altHost . ";port=" . DB_PORT . ";dbname=" . DB_DATABASE . ";charset=utf8mb4";
-
-        if (file_exists('/var/lib/mysql/mysql.sock')) {
-            $dsnList[] = "mysql:unix_socket=/var/lib/mysql/mysql.sock;dbname=" . DB_DATABASE . ";charset=utf8mb4";
-        }
-        if (file_exists('/tmp/mysql.sock')) {
-            $dsnList[] = "mysql:unix_socket=/tmp/mysql.sock;dbname=" . DB_DATABASE . ";charset=utf8mb4";
-        }
-
-        $lastException = null;
-        foreach ($dsnList as $dsn) {
-            try {
-                $pdo = new PDO($dsn, DB_USERNAME, DB_PASSWORD, $options);
-                break;
-            } catch (PDOException $e) {
-                $lastException = $e;
+if (!function_exists('getDatabaseEnvironment')) {
+    function getDatabaseEnvironment(): string {
+        // 1. Explicit APP_ENV environment variable
+        $appEnv = getenv('APP_ENV') ?: ($_SERVER['APP_ENV'] ?? ($_ENV['APP_ENV'] ?? ''));
+        if (!empty($appEnv)) {
+            $normalized = strtolower(trim($appEnv));
+            if (in_array($normalized, ['local', 'development', 'dev', 'testing'])) {
+                return 'local';
+            }
+            if (in_array($normalized, ['production', 'prod', 'live'])) {
+                return 'production';
             }
         }
 
-        if ($pdo === null && $lastException !== null) {
-            // Detailed Audit Server-Side Error Logging (NEVER log passwords, keys or tokens)
-            $timestamp = date('Y-m-d H:i:s');
-            $requestUri = $_SERVER['REQUEST_URI'] ?? 'CLI';
-            $phpVersion = PHP_VERSION;
-            $dbHost = DB_HOST;
-            $dbName = DB_DATABASE;
-            $env = APP_ENV;
-
-            $logMessage = sprintf(
-                "[TeamTrace][DB] Timestamp: %s | Environment: %s | Host: %s | Database: %s | PHP: %s | URI: %s | Error: %s",
-                $timestamp,
-                $env,
-                $dbHost,
-                $dbName,
-                $phpVersion,
-                $requestUri,
-                $lastException->getMessage()
-            );
-            error_log($logMessage);
-
-            if (php_sapi_name() === 'cli') {
-                die("Database Connection Error [{$env}]: " . $lastException->getMessage() . "\n");
-            }
-
-            // Determine if request expects JSON (API endpoints) or HTML page
-            $isJsonRequest = false;
-            $uri = $_SERVER['REQUEST_URI'] ?? '';
-            $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
-            $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-
+        // 2. Hostname detection for Web requests
+        $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? ($_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? ''));
+        if (!empty($host)) {
+            $hostName = strtolower(explode(':', $host)[0]);
             if (
-                strpos($uri, '/api/') !== false ||
-                strpos($accept, 'application/json') !== false ||
-                strpos($contentType, 'application/json') !== false
+                $hostName === 'localhost' ||
+                $hostName === '127.0.0.1' ||
+                $hostName === '::1' ||
+                str_ends_with($hostName, '.local')
             ) {
-                $isJsonRequest = true;
+                return 'local';
+            }
+            return 'production';
+        }
+
+        // 3. CLI execution check by OS family
+        if (PHP_OS_FAMILY === 'Darwin') {
+            return 'local';
+        }
+
+        // Safe default for production live server
+        return 'production';
+    }
+}
+
+if (!function_exists('getDbConnection')) {
+    function getDbConnection() {
+        static $pdo = null;
+        if ($pdo === null) {
+            $configFile = __DIR__ . '/../config/database.php';
+            $exampleFile = __DIR__ . '/../config/database.example.php';
+
+            if (file_exists($configFile)) {
+                $configs = require $configFile;
+            } elseif (file_exists($exampleFile)) {
+                $configs = require $exampleFile;
+            } else {
+                die("Database Configuration Error: config/database.php not found.\n");
             }
 
-            http_response_code(500);
+            $env = getDatabaseEnvironment();
+            if (!isset($configs[$env])) {
+                die("Database Configuration Error: Environment '{$env}' not defined in config/database.php.\n");
+            }
 
-            if (APP_ENV === 'development') {
-                if ($isJsonRequest) {
-                    header('Content-Type: application/json');
-                    echo json_encode(["success" => false, "error" => "Database Connection Error: " . $lastException->getMessage()]);
-                } else {
-                    echo "<!DOCTYPE html><html><head><title>Database Error</title></head><body style='font-family:sans-serif; padding:2rem;'>";
-                    echo "<h1>Database Connection Error</h1>";
-                    echo "<p style='color:red; font-weight:bold;'>" . htmlspecialchars($lastException->getMessage()) . "</p>";
-                    echo "<p>Environment: <code>" . htmlspecialchars($env) . "</code> | Host: <code>" . htmlspecialchars($dbHost) . "</code></p>";
-                    echo "</body></html>";
+            $dbConfig = $configs[$env];
+            $host = $dbConfig['host'] ?? '127.0.0.1';
+            $port = $dbConfig['port'] ?? '3306';
+            $dbname = $dbConfig['database'] ?? 'employee_monitor';
+            $user = $dbConfig['username'] ?? '';
+            $pass = $dbConfig['password'] ?? '';
+
+            if (empty($user)) {
+                die("Database Configuration Error: Username missing for environment '{$env}'.\n");
+            }
+
+            $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_TIMEOUT => 5
+            ];
+
+            try {
+                $pdo = new PDO($dsn, $user, $pass, $options);
+            } catch (PDOException $e) {
+                // Detailed Audit Server-Side Error Logging (NEVER log passwords, keys or tokens)
+                $timestamp = date('Y-m-d H:i:s');
+                $requestUri = $_SERVER['REQUEST_URI'] ?? 'CLI';
+                $phpVersion = PHP_VERSION;
+
+                $logMessage = sprintf(
+                    "[TeamTrace][DB] Timestamp: %s | Environment: %s | Host: %s | Database: %s | User: %s | PHP: %s | URI: %s | Error: %s",
+                    $timestamp,
+                    $env,
+                    $host,
+                    $dbname,
+                    $user,
+                    $phpVersion,
+                    $requestUri,
+                    $e->getMessage()
+                );
+                error_log($logMessage);
+
+                if (php_sapi_name() === 'cli') {
+                    die("Database Connection Error [{$env}]: " . $e->getMessage() . "\n");
                 }
-            } else {
+
+                $isJsonRequest = false;
+                $uri = $_SERVER['REQUEST_URI'] ?? '';
+                $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+                $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+
+                if (
+                    strpos($uri, '/api/') !== false ||
+                    strpos($accept, 'application/json') !== false ||
+                    strpos($contentType, 'application/json') !== false
+                ) {
+                    $isJsonRequest = true;
+                }
+
+                http_response_code(500);
+
                 if ($isJsonRequest) {
                     header('Content-Type: application/json');
                     echo json_encode(["success" => false, "error" => "Internal Server Error"]);
@@ -99,9 +128,9 @@ function getDbConnection() {
                     echo "<p style='color:#666;'>The system is currently unable to connect to the database. Please contact system administrator.</p>";
                     echo "</body></html>";
                 }
+                exit;
             }
-            exit;
         }
+        return $pdo;
     }
-    return $pdo;
 }
