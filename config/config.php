@@ -33,8 +33,8 @@ if (!defined('SERVER_BASE_URL')) define('SERVER_BASE_URL', rtrim($envConfig['SER
 if (!defined('DB_HOST')) define('DB_HOST', $envConfig['DB_HOST'] ?? '127.0.0.1');
 if (!defined('DB_PORT')) define('DB_PORT', $envConfig['DB_PORT'] ?? '3306');
 if (!defined('DB_DATABASE')) define('DB_DATABASE', $envConfig['DB_DATABASE'] ?? 'employee_monitor');
-if (!defined('DB_USERNAME')) define('DB_USERNAME', $envConfig['DB_USERNAME'] ?? 'root');
-if (!defined('DB_PASSWORD')) define('DB_PASSWORD', $envConfig['DB_PASSWORD'] ?? '');
+if (!defined('DB_USERNAME')) define('DB_USERNAME', $envConfig['DB_USERNAME'] ?? 'employee_monitor');
+if (!defined('DB_PASSWORD')) define('DB_PASSWORD', $envConfig['DB_PASSWORD'] ?? '4ckaCg6L3yeEgF9.');
 
 if (!defined('APP_KEY')) define('APP_KEY', $envConfig['APP_KEY'] ?? 'default_secret_key_change_in_production');
 if (!defined('SCREENSHOT_STORAGE_PATH')) define('SCREENSHOT_STORAGE_PATH', __DIR__ . '/../' . ($envConfig['SCREENSHOT_STORAGE_PATH'] ?? 'storage/screenshots'));
