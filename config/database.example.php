@@ -11,7 +11,7 @@ return [
     ],
     'production' => [
         'host' => '127.0.0.1',
-        'port' => '3306',
+        'port' => '3307',
         'database' => 'employee_monitor',
         'username' => 'employee_monitor',
         'password' => '4ckaCg6L3yeEgF9.',

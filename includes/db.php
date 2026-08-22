@@ -62,7 +62,7 @@ if (!function_exists('getDbConnection')) {
 
             $dbConfig = $configs[$env];
             $host = $dbConfig['host'] ?? '127.0.0.1';
-            $port = $dbConfig['port'] ?? '3306';
+            $port = $dbConfig['port'] ?? ($env === 'production' ? '3307' : '3306');
             $dbname = $dbConfig['database'] ?? 'employee_monitor';
             $user = $dbConfig['username'] ?? '';
             $pass = $dbConfig['password'] ?? '';
