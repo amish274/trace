@@ -2,12 +2,12 @@
 // health.php - System Health Check Endpoint
 
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/config/config.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
 $status = "ok";
 $dbStatus = "disconnected";
-$env = getDatabaseEnvironment();
 
 try {
     $pdo = getDbConnection();
@@ -26,7 +26,7 @@ if ($status === "error") {
 
 echo json_encode([
     "status" => $status,
-    "environment" => $env,
+    "environment" => defined('APP_ENV') ? APP_ENV : 'production',
     "php" => PHP_VERSION,
     "database" => $dbStatus
 ], JSON_PRETTY_PRINT);

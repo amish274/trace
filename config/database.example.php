@@ -2,18 +2,9 @@
 // config/database.example.php - Database Configuration Template
 
 return [
-    'local' => [
-        'host' => '127.0.0.1',
-        'port' => '3306',
-        'database' => 'employee_monitor',
-        'username' => 'employee_monitor',
-        'password' => '4ckaCg6L3yeEgF9.',
-    ],
-    'production' => [
-        'host' => '127.0.0.1',
-        'port' => '3307',
-        'database' => 'employee_monitor',
-        'username' => 'employee_monitor',
-        'password' => '4ckaCg6L3yeEgF9.',
-    ],
+    'host'     => '127.0.0.1',
+    'port'     => '3306',
+    'database' => 'employee_monitor',
+    'username' => 'employee_monitor',
+    'password' => 'REPLACE_WITH_DATABASE_PASSWORD',
 ];

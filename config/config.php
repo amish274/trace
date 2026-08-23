@@ -26,11 +26,11 @@ if (!function_exists('loadEnv')) {
 // Load root .env file if present
 loadEnv(__DIR__ . '/../.env');
 
-$env = getDatabaseEnvironment();
+$env = getenv('APP_ENV') ?: 'production';
 
 if (!defined('APP_ENV')) define('APP_ENV', $env);
 if (!defined('SERVER_BASE_URL')) {
-    $baseUrl = getenv('SERVER_BASE_URL') ?: ($env === 'local' ? 'http://127.0.0.1:8888' : 'https://ethnicboost.com/Trace');
+    $baseUrl = getenv('SERVER_BASE_URL') ?: (PHP_OS_FAMILY === 'Darwin' ? 'http://127.0.0.1:8888' : 'https://ethnicboost.com/Trace');
     define('SERVER_BASE_URL', rtrim($baseUrl, '/'));
 }
 

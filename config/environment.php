@@ -1,11 +1,9 @@
 <?php
-// config/environment.php - Environment Resolver Alias
+// config/environment.php - Application Environment Alias
 
-require_once __DIR__ . '/../includes/db.php';
-
-$env = getDatabaseEnvironment();
+require_once __DIR__ . '/config.php';
 
 return [
-    'APP_ENV' => $env,
-    'ENVIRONMENT_NAME' => $env
+    'APP_ENV' => defined('APP_ENV') ? APP_ENV : 'production',
+    'ENVIRONMENT_NAME' => defined('APP_ENV') ? APP_ENV : 'production'
 ];
