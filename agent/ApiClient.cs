@@ -15,12 +15,15 @@ namespace MonitorAgent
         {
             try
             {
-                System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls13;
+                // Prefer TLS 1.2 specifically on Windows Server 2012 R2
+                System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLogger.LogWarn($"ServicePointManager TLS 1.2 setup warning: {ex.Message}");
+            }
 
             var handler = new HttpClientHandler();
-            // In production, server validation is automatic via HTTPS
             _httpClient = new HttpClient(handler);
             _httpClient.Timeout = TimeSpan.FromSeconds(15);
         }
@@ -35,14 +38,13 @@ namespace MonitorAgent
             }
         }
 
-        /// <summary>
-        /// Register device using enrollment token
-        /// </summary>
         public async Task<bool> RegisterAsync(string enrollmentToken)
         {
             try
             {
                 string url = $"{AppConfig.Current.ServerBaseUrl.TrimEnd('/')}/api/agent/register.php";
+                AppLogger.LogInfo($"RegisterAsync attempting device registration with server URL: {AppConfig.Current.ServerBaseUrl}");
+
                 var payload = new
                 {
                     enrollment_token = enrollmentToken,
@@ -55,29 +57,41 @@ namespace MonitorAgent
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PostAsync(url, content);
+                string respJson = await response.Content.ReadAsStringAsync();
+
                 if (response.IsSuccessStatusCode)
                 {
-                    string respJson = await response.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(respJson);
                     var root = doc.RootElement;
-                    if (root.GetProperty("success").GetBoolean())
+                    if (root.TryGetProperty("success", out var succ) && succ.GetBoolean())
                     {
                         AppConfig.Current.DeviceToken = root.GetProperty("device_token").GetString() ?? "";
                         AppConfig.Save();
+                        AppLogger.LogInfo("RegisterAsync SUCCESS: Device token acquired and saved.");
                         return true;
                     }
+                    else
+                    {
+                        string err = root.TryGetProperty("error", out var errProp) ? errProp.GetString() ?? "Unknown error" : "Unknown error";
+                        AppLogger.LogWarn($"RegisterAsync server returned logic error: {err}");
+                    }
                 }
+                else
+                {
+                    AppLogger.LogWarn($"RegisterAsync HTTP error status: {(int)response.StatusCode} {response.StatusCode} | Body: {respJson}");
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                AppLogger.LogError("RegisterAsync HttpRequestException (Network/TLS/DNS failure).", ex);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Register error: {ex.Message}");
+                AppLogger.LogError("RegisterAsync unexpected exception.", ex);
             }
             return false;
         }
 
-        /// <summary>
-        /// Fetch current configuration from VPS endpoint
-        /// </summary>
         public async Task<bool> FetchConfigAsync()
         {
             try
@@ -106,17 +120,18 @@ namespace MonitorAgent
                         return true;
                     }
                 }
+                else
+                {
+                    AppLogger.LogWarn($"FetchConfigAsync HTTP status: {(int)response.StatusCode}");
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"FetchConfig error: {ex.Message}");
+                AppLogger.LogError("FetchConfigAsync exception.", ex);
             }
             return false;
         }
 
-        /// <summary>
-        /// Send periodic heartbeat to VPS endpoint
-        /// </summary>
         public async Task<bool> SendHeartbeatAsync(bool active, int idleSeconds)
         {
             try
@@ -135,19 +150,19 @@ namespace MonitorAgent
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PostAsync(url, content);
+                if (!response.IsSuccessStatusCode)
+                {
+                    AppLogger.LogWarn($"SendHeartbeatAsync HTTP status: {(int)response.StatusCode}");
+                }
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Heartbeat error: {ex.Message}");
+                AppLogger.LogError("SendHeartbeatAsync exception.", ex);
             }
             return false;
         }
 
-        /// <summary>
-        /// Multipart HTTPS upload of JPEG screenshot array.
-        /// Retries safely up to 3 times on network glitch then discards if unfulfilled.
-        /// </summary>
         public async Task<bool> UploadScreenshotAsync(byte[] jpegBytes, string activityStatus, int idleSeconds)
         {
             if (jpegBytes == null || jpegBytes.Length == 0) return false;
@@ -176,22 +191,26 @@ namespace MonitorAgent
                         var response = await _httpClient.PostAsync(url, multipartContent);
                         if (response.IsSuccessStatusCode)
                         {
+                            AppLogger.LogInfo($"UploadScreenshotAsync SUCCESS on attempt {attempts}.");
                             return true;
+                        }
+                        else
+                        {
+                            AppLogger.LogWarn($"UploadScreenshotAsync attempt {attempts} HTTP status: {(int)response.StatusCode}");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Upload attempt {attempts} failed: {ex.Message}");
+                    AppLogger.LogError($"UploadScreenshotAsync attempt {attempts} exception.", ex);
                 }
 
                 if (attempts < maxAttempts)
                 {
-                    await Task.Delay(2000); // 2 sec retry delay
+                    await Task.Delay(2000);
                 }
             }
 
-            // Discard image memory after bounded retries to prevent unbounded memory buildup
             return false;
         }
     }

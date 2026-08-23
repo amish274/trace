@@ -62,12 +62,17 @@ namespace MonitorAgent
                     if (settings != null)
                     {
                         Current = settings;
+                        AppLogger.LogInfo($"Loaded agent_config.json successfully (ServerBaseUrl: {Current.ServerBaseUrl}).");
                     }
                 }
+                else
+                {
+                    AppLogger.LogInfo("agent_config.json not found, using default settings.");
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback to defaults if file corrupted
+                AppLogger.LogError("Failed loading agent_config.json, falling back to defaults.", ex);
             }
         }
 
@@ -83,10 +88,11 @@ namespace MonitorAgent
 
                 string json = JsonSerializer.Serialize(Current, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(ConfigPath, json);
+                AppLogger.LogInfo("Saved agent_config.json successfully.");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to save config: {ex.Message}");
+                AppLogger.LogError("Failed saving agent_config.json.", ex);
             }
         }
 
@@ -108,6 +114,7 @@ namespace MonitorAgent
                         var bootstrap = JsonSerializer.Deserialize<BootstrapPayload>(json);
                         if (bootstrap != null && !string.IsNullOrEmpty(bootstrap.EnrollmentToken))
                         {
+                            AppLogger.LogInfo($"Read zero-touch bootstrap.json payload from {path}.");
                             return bootstrap;
                         }
                     }
@@ -115,7 +122,7 @@ namespace MonitorAgent
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error reading bootstrap.json: {ex.Message}");
+                AppLogger.LogError("Error reading bootstrap.json payload.", ex);
             }
             return null;
         }
@@ -128,9 +135,13 @@ namespace MonitorAgent
                 if (File.Exists(path))
                 {
                     File.Delete(path);
+                    AppLogger.LogInfo("Cleared bootstrap.json file.");
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLogger.LogError("Failed clearing bootstrap.json file.", ex);
+            }
         }
     }
 }

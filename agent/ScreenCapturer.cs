@@ -11,14 +11,26 @@ namespace MonitorAgent
         /// <summary>
         /// Captures primary screen, encodes JPEG image directly in memory, and returns byte array.
         /// Does NOT save temporary screenshot files to disk on the employee machine.
+        /// Isolate screen capture errors so failures never terminate the agent process.
         /// </summary>
         public static byte[]? CaptureScreenToJpegMemory(int targetWidth, int targetHeight, int jpegQuality)
         {
             try
             {
-                // Determine primary screen dimensions
-                Rectangle bounds = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
-                
+                Screen? primary = Screen.PrimaryScreen;
+                if (primary == null)
+                {
+                    AppLogger.LogWarn("Screen capture skipped: Screen.PrimaryScreen is null.");
+                    return null;
+                }
+
+                Rectangle bounds = primary.Bounds;
+                if (bounds.Width <= 0 || bounds.Height <= 0)
+                {
+                    AppLogger.LogWarn($"Screen capture skipped: invalid screen bounds ({bounds.Width}x{bounds.Height}).");
+                    return null;
+                }
+
                 using (Bitmap bitmap = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format32bppArgb))
                 {
                     using (Graphics g = Graphics.FromImage(bitmap))
@@ -26,7 +38,6 @@ namespace MonitorAgent
                         g.CopyFromScreen(bounds.X, bounds.Y, 0, 0, bounds.Size, CopyPixelOperation.SourceCopy);
                     }
 
-                    // Resize if target resolution requested and smaller than actual screen
                     Bitmap finalBitmap = bitmap;
                     bool needResize = (targetWidth > 0 && targetHeight > 0 && 
                                       (targetWidth < bounds.Width || targetHeight < bounds.Height));
@@ -41,13 +52,21 @@ namespace MonitorAgent
                         using (MemoryStream ms = new MemoryStream())
                         {
                             ImageCodecInfo? jpegEncoder = GetEncoder(ImageFormat.Jpeg);
-                            if (jpegEncoder == null) return null;
+                            if (jpegEncoder == null)
+                            {
+                                AppLogger.LogWarn("Screen capture skipped: JPEG encoder codec not found.");
+                                return null;
+                            }
 
-                            EncoderParameters encoderParameters = new EncoderParameters(1);
-                            encoderParameters.Param[0] = new EncoderParameter(Encoder.Quality, (long)jpegQuality);
+                            using (EncoderParameters encoderParameters = new EncoderParameters(1))
+                            {
+                                encoderParameters.Param[0] = new EncoderParameter(Encoder.Quality, (long)jpegQuality);
+                                finalBitmap.Save(ms, jpegEncoder, encoderParameters);
+                            }
 
-                            finalBitmap.Save(ms, jpegEncoder, encoderParameters);
-                            return ms.ToArray();
+                            byte[] result = ms.ToArray();
+                            AppLogger.LogInfo($"Captured screenshot successfully ({bounds.Width}x{bounds.Height}, JPEG size: {result.Length} bytes).");
+                            return result;
                         }
                     }
                     finally
@@ -61,20 +80,27 @@ namespace MonitorAgent
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Screen capture error: {ex.Message}");
+                AppLogger.LogError("Screen capture exception encountered.", ex);
                 return null;
             }
         }
 
         private static ImageCodecInfo? GetEncoder(ImageFormat format)
         {
-            ImageCodecInfo[] codecs = ImageCodecInfo.GetImageEncoders();
-            foreach (ImageCodecInfo codec in codecs)
+            try
             {
-                if (codec.FormatID == format.Guid)
+                ImageCodecInfo[] codecs = ImageCodecInfo.GetImageEncoders();
+                foreach (ImageCodecInfo codec in codecs)
                 {
-                    return codec;
+                    if (codec.FormatID == format.Guid)
+                    {
+                        return codec;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogError("Error enumerating image encoders.", ex);
             }
             return null;
         }

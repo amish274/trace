@@ -51,7 +51,7 @@ namespace SystemUtilityBootstrap
             Console.WriteLine("=========================================================\n");
             try
             {
-                System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls13;
+                System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
             }
             catch { }
 
