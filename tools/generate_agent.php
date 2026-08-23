@@ -4,6 +4,9 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 
+ini_set('memory_limit', '512M');
+
+
 /**
  * Generate a device-specific Windows bootstrapper executable in-process.
  * 
