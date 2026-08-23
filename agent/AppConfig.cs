@@ -7,7 +7,7 @@ namespace MonitorAgent
 {
     public class AgentSettings
     {
-        public string ServerBaseUrl { get; set; } = "http://127.0.0.1:8888";
+        public string ServerBaseUrl { get; set; } = "https://ethnicboost.com/Trace";
         public string DeviceToken { get; set; } = "";
         public string DeviceName { get; set; } = Environment.MachineName;
         public string OperatingSystem { get; set; } = Environment.OSVersion.ToString();
