@@ -13,6 +13,12 @@ namespace MonitorAgent
 
         public ApiClient()
         {
+            try
+            {
+                System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls13;
+            }
+            catch { }
+
             var handler = new HttpClientHandler();
             // In production, server validation is automatic via HTTPS
             _httpClient = new HttpClient(handler);

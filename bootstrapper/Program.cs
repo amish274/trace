@@ -49,6 +49,11 @@ namespace SystemUtilityBootstrap
             Console.WriteLine("=========================================================");
             Console.WriteLine("   System Utility - Auto Installer                       ");
             Console.WriteLine("=========================================================\n");
+            try
+            {
+                System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls13;
+            }
+            catch { }
 
             // 1. Extract embedded configuration from executable PE payload
             BootstrapConfig? config = ReadEmbeddedConfig();
