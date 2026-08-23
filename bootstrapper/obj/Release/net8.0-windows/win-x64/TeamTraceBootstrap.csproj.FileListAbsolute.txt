@@ -12,3 +12,4 @@
 /Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/win-x64/TeamTraceBootstrap.pdb
 /Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/win-x64/TeamTraceBootstrap.genruntimeconfig.cache
 /Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/win-x64/ref/TeamTraceBootstrap.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/win-x64/TeamTraceBootstrap.sourcelink.json

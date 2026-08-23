@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("System Utility")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8054775438574de3af17847d059a34968c109591")]
 [assembly: System.Reflection.AssemblyProductAttribute("System Utility")]
 [assembly: System.Reflection.AssemblyTitleAttribute("System Utility")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

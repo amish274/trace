@@ -1,0 +1,5 @@
+/tmp/bootstrapper_build/TeamTraceBootstrap.exe
+/tmp/bootstrapper_build/TeamTraceBootstrap.dll
+/tmp/bootstrapper_build/TeamTraceBootstrap.deps.json
+/tmp/bootstrapper_build/TeamTraceBootstrap.runtimeconfig.json
+/tmp/bootstrapper_build/TeamTraceBootstrap.pdb
