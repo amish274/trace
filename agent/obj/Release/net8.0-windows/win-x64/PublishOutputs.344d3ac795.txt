@@ -1,2 +1,7 @@
 /Applications/MAMP/htdocs/ethnicboost/Trace/storage/agent/MonitorAgent.pdb
+/Applications/MAMP/htdocs/ethnicboost/Trace/storage/agent/D3DCompiler_47_cor3.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/storage/agent/PenImc_cor3.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/storage/agent/PresentationNative_cor3.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/storage/agent/vcruntime140_cor3.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/storage/agent/wpfgfx_cor3.dll
 /Applications/MAMP/htdocs/ethnicboost/Trace/storage/agent/MonitorAgent.exe
