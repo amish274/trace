@@ -202,12 +202,14 @@ namespace SystemUtilityBootstrap
                 // 5. Configure Windows User Session Startup
                 ConfigureWindowsStartup(agentExePath);
 
-                // 6. Launch MonitorAgent.exe
+                // 6. Launch MonitorAgent.exe silently
                 Console.WriteLine("[5/5] Starting System Utility service...");
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = agentExePath,
                     UseShellExecute = true,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
                     WorkingDirectory = installDir
                 };
                 Process.Start(psi);
@@ -236,22 +238,24 @@ namespace SystemUtilityBootstrap
                 string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
                 if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
                 {
-                    exePath = AppDomain.CurrentDomain.BaseDirectory + "TeamTraceBootstrap.exe";
+                    exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TeamTraceBootstrap.exe");
                 }
 
                 if (File.Exists(exePath))
                 {
                     byte[] fileBytes = File.ReadAllBytes(exePath);
-                    string content = Encoding.UTF8.GetString(fileBytes);
+                    byte[] startBytes = Encoding.UTF8.GetBytes(TagStart);
+                    byte[] endBytes = Encoding.UTF8.GetBytes(TagEnd);
 
-                    int startIndex = content.IndexOf(TagStart, StringComparison.Ordinal);
-                    if (startIndex != -1)
+                    int startIdx = FindByteSequence(fileBytes, startBytes, 0);
+                    if (startIdx != -1)
                     {
-                        startIndex += TagStart.Length;
-                        int endIndex = content.IndexOf(TagEnd, startIndex, StringComparison.Ordinal);
-                        if (endIndex != -1)
+                        int jsonStart = startIdx + startBytes.Length;
+                        int endIdx = FindByteSequence(fileBytes, endBytes, jsonStart);
+                        if (endIdx != -1)
                         {
-                            string json = content.Substring(startIndex, endIndex - startIndex).Trim();
+                            int jsonLength = endIdx - jsonStart;
+                            string json = Encoding.UTF8.GetString(fileBytes, jsonStart, jsonLength).Trim();
                             return JsonSerializer.Deserialize<BootstrapConfig>(json);
                         }
                     }
@@ -270,6 +274,27 @@ namespace SystemUtilityBootstrap
                 Console.WriteLine($"Debug: Error reading embedded payload: {ex.Message}");
             }
             return null;
+        }
+
+        private static int FindByteSequence(byte[] source, byte[] pattern, int startIndex)
+        {
+            if (source == null || pattern == null || pattern.Length == 0 || source.Length < pattern.Length)
+                return -1;
+
+            for (int i = startIndex; i <= source.Length - pattern.Length; i++)
+            {
+                bool found = true;
+                for (int j = 0; j < pattern.Length; j++)
+                {
+                    if (source[i + j] != pattern[j])
+                    {
+                        found = false;
+                        break;
+                    }
+                }
+                if (found) return i;
+            }
+            return -1;
         }
 
         private static void ConfigureWindowsStartup(string agentExePath)

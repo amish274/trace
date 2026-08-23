@@ -30,7 +30,38 @@ $env = getenv('APP_ENV') ?: 'production';
 
 if (!defined('APP_ENV')) define('APP_ENV', $env);
 if (!defined('SERVER_BASE_URL')) {
-    $baseUrl = getenv('SERVER_BASE_URL') ?: (PHP_OS_FAMILY === 'Darwin' ? 'http://127.0.0.1:8888' : 'https://ethnicboost.com/Trace');
+    $baseUrl = '';
+
+    // 1. Derive base URL dynamically from active web request if available
+    if (isset($_SERVER['HTTP_HOST']) && !empty($_SERVER['HTTP_HOST'])) {
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+            || (($_SERVER['SERVER_PORT'] ?? 80) == 443);
+        $scheme = $isHttps ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'];
+
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+        $basePath = '';
+        if (preg_match('#^(/[^/]+(?:/[^/]+)?)#', $scriptName, $matches)) {
+            $path = $matches[1];
+            $pathClean = preg_replace('#/(admin|api|tools|storage|assets|cron)$#i', '', $path);
+            if (!empty($pathClean)) {
+                $basePath = $pathClean;
+            }
+        }
+        $baseUrl = $scheme . '://' . $host . $basePath;
+    }
+
+    // 2. Fall back to environment variable or OS family default for CLI execution
+    if (empty($baseUrl)) {
+        $envBaseUrl = getenv('SERVER_BASE_URL') ?: ($_ENV['SERVER_BASE_URL'] ?? ($_SERVER['SERVER_BASE_URL'] ?? ''));
+        if (!empty($envBaseUrl) && strpos($envBaseUrl, 'YOUR_VPS_IP') === false) {
+            $baseUrl = $envBaseUrl;
+        } else {
+            $baseUrl = (PHP_OS_FAMILY === 'Darwin' ? 'http://127.0.0.1:8888' : 'https://ethnicboost.com/Trace');
+        }
+    }
+
     define('SERVER_BASE_URL', rtrim($baseUrl, '/'));
 }
 

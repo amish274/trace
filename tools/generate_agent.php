@@ -50,6 +50,7 @@ function generateAgentPackage(int $deviceId, string $token, string $serverUrl = 
     // Create embedded payload
     $bootstrapData = [
         'server_base_url' => rtrim($serverUrl, '/'),
+        'server_url' => rtrim($serverUrl, '/'),
         'enrollment_token' => $token,
         'device_id' => (int)$deviceId,
         'device_name' => $device['device_name'],
