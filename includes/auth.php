@@ -11,7 +11,7 @@ if (session_status() === PHP_SESSION_NONE) {
  * @return array|null Returns device row array on success, null on failure
  */
 function authenticateAgentDevice() {
-    $headers = getallheaders();
+    $headers = function_exists('getallheaders') ? getallheaders() : [];
     $authHeader = null;
 
     if (isset($headers['Authorization'])) {
@@ -21,6 +21,7 @@ function authenticateAgentDevice() {
     } else if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
     }
+
 
     if (!$authHeader || !preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
         return null;
