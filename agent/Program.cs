@@ -41,7 +41,7 @@ namespace MonitorAgent
                 AppLogger.LogInfo("=== MonitorAgent Startup Initialized ===");
                 AppLogger.LogInfo($"Agent Version: 1.0.0 | OS: {Environment.OSVersion} | Machine: {Environment.MachineName}");
 
-                // 1. Safe DPI Awareness Initialization (Catch Windows Server 2012 R2 API limitations)
+                // 1. Safe DPI Awareness Initialization
                 try
                 {
                     Application.SetHighDpiMode(HighDpiMode.SystemAware);
@@ -175,7 +175,7 @@ namespace MonitorAgent
                     {
                         using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true))
                         {
-                            key?.SetValue("SystemUtility", $"\"{appPath}\"");
+                            key?.SetValue("TeamTrace", $"\"{appPath}\"");
                         }
                     }
                 }
@@ -192,7 +192,7 @@ namespace MonitorAgent
             {
                 Icon = SystemIcons.Shield,
                 Visible = true,
-                Text = "System Utility (Workplace Monitoring)"
+                Text = "TeamTrace Agent (Workplace Monitoring)"
             };
 
             ContextMenuStrip menu = new ContextMenuStrip();
@@ -224,13 +224,13 @@ namespace MonitorAgent
                     {
                         _notifyIcon.ContextMenuStrip.Invoke((MethodInvoker)delegate {
                             _notifyIcon.ContextMenuStrip.Items[0].Text = $"Status: {statusText}";
-                            _notifyIcon.Text = $"System Utility - {statusText}";
+                            _notifyIcon.Text = $"TeamTrace - {statusText}";
                         });
                     }
                     else
                     {
                         _notifyIcon.ContextMenuStrip.Items[0].Text = $"Status: {statusText}";
-                        _notifyIcon.Text = $"System Utility - {statusText}";
+                        _notifyIcon.Text = $"TeamTrace - {statusText}";
                     }
                 }
             }
@@ -249,7 +249,7 @@ namespace MonitorAgent
                     Width = 450,
                     Height = 260,
                     FormBorderStyle = FormBorderStyle.FixedDialog,
-                    Text = "System Utility Configuration",
+                    Text = "TeamTrace Configuration",
                     StartPosition = FormStartPosition.CenterScreen
                 };
 
@@ -281,11 +281,11 @@ namespace MonitorAgent
                             bool success = await _apiClient.RegisterAsync(enrollToken);
                             if (success)
                             {
-                                MessageBox.Show("Device registered successfully!", "System Utility", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                MessageBox.Show("Device registered successfully!", "TeamTrace", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
                             else
                             {
-                                MessageBox.Show("Failed to register device with server.", "System Utility", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                MessageBox.Show("Failed to register device with server.", "TeamTrace", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                         });
                     }
@@ -311,7 +311,7 @@ namespace MonitorAgent
                         _apiClient = new ApiClient();
                     }
 
-                    // 1. Check for zero-touch bootstrap.json if not enrolled yet
+                    // 1. Check for zero-touch bootstrap payload if not enrolled yet
                     if (string.IsNullOrEmpty(AppConfig.Current.DeviceToken))
                     {
                         var bootstrap = AppConfig.ReadBootstrapFile();

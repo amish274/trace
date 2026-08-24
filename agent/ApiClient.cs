@@ -26,6 +26,7 @@ namespace MonitorAgent
             var handler = new HttpClientHandler();
             _httpClient = new HttpClient(handler);
             _httpClient.Timeout = TimeSpan.FromSeconds(15);
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("TeamTrace-Agent/1.0 (Windows NT)");
         }
 
         private void SetAuthHeader()

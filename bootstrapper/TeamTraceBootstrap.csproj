@@ -7,13 +7,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWindowsForms>true</UseWindowsForms>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <RootNamespace>SystemUtilityBootstrap</RootNamespace>
+    <RootNamespace>TeamTraceBootstrap</RootNamespace>
     <AssemblyName>TeamTraceBootstrap</AssemblyName>
-    <AssemblyTitle>System Utility</AssemblyTitle>
-    <Product>System Utility</Product>
-    <Description>System Utility</Description>
-    <Company>System Utility</Company>
-    <ApplicationIcon></ApplicationIcon>
+    <AssemblyTitle>TeamTrace Installer Bootstrapper</AssemblyTitle>
+    <Product>TeamTrace Employee Monitoring</Product>
+    <Description>TeamTrace Workplace Activity Monitoring Installer</Description>
+    <Company>TeamTrace Software</Company>
+    <Copyright>Copyright © TeamTrace Software. All rights reserved.</Copyright>
+    <Version>1.0.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
   </PropertyGroup>
 
 </Project>

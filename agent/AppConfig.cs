@@ -45,6 +45,12 @@ namespace MonitorAgent
     {
         private static readonly string ConfigPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "TeamTrace",
+            "agent_config.json"
+        );
+
+        private static readonly string LegacyConfigPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "SystemUtility",
             "agent_config.json"
         );
@@ -55,9 +61,10 @@ namespace MonitorAgent
         {
             try
             {
-                if (File.Exists(ConfigPath))
+                string targetPath = File.Exists(ConfigPath) ? ConfigPath : (File.Exists(LegacyConfigPath) ? LegacyConfigPath : "");
+                if (!string.IsNullOrEmpty(targetPath))
                 {
-                    string json = File.ReadAllText(ConfigPath);
+                    string json = File.ReadAllText(targetPath);
                     var settings = JsonSerializer.Deserialize<AgentSettings>(json);
                     if (settings != null)
                     {
@@ -100,29 +107,36 @@ namespace MonitorAgent
         {
             try
             {
-                string[] checkPaths = new[]
-                {
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bootstrap.json"),
-                    Path.Combine(Directory.GetCurrentDirectory(), "bootstrap.json")
-                };
+                string[] checkNames = new[] { "teamtrace.config.json", "bootstrap.json" };
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string currentDir = Directory.GetCurrentDirectory();
 
-                foreach (var path in checkPaths)
+                foreach (var name in checkNames)
                 {
-                    if (File.Exists(path))
+                    string[] checkPaths = new[]
                     {
-                        string json = File.ReadAllText(path);
-                        var bootstrap = JsonSerializer.Deserialize<BootstrapPayload>(json);
-                        if (bootstrap != null && !string.IsNullOrEmpty(bootstrap.EnrollmentToken))
+                        Path.Combine(baseDir, name),
+                        Path.Combine(currentDir, name)
+                    };
+
+                    foreach (var path in checkPaths)
+                    {
+                        if (File.Exists(path))
                         {
-                            AppLogger.LogInfo($"Read zero-touch bootstrap.json payload from {path}.");
-                            return bootstrap;
+                            string json = File.ReadAllText(path);
+                            var bootstrap = JsonSerializer.Deserialize<BootstrapPayload>(json);
+                            if (bootstrap != null && !string.IsNullOrEmpty(bootstrap.EnrollmentToken))
+                            {
+                                AppLogger.LogInfo($"Read zero-touch bootstrap payload from {path}.");
+                                return bootstrap;
+                            }
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                AppLogger.LogError("Error reading bootstrap.json payload.", ex);
+                AppLogger.LogError("Error reading bootstrap config payload.", ex);
             }
             return null;
         }
@@ -131,16 +145,20 @@ namespace MonitorAgent
         {
             try
             {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bootstrap.json");
-                if (File.Exists(path))
+                string[] names = new[] { "teamtrace.config.json", "bootstrap.json" };
+                foreach (var name in names)
                 {
-                    File.Delete(path);
-                    AppLogger.LogInfo("Cleared bootstrap.json file.");
+                    string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, name);
+                    if (File.Exists(path))
+                    {
+                        File.Delete(path);
+                        AppLogger.LogInfo($"Cleared {name} file.");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                AppLogger.LogError("Failed clearing bootstrap.json file.", ex);
+                AppLogger.LogError("Failed clearing bootstrap config file.", ex);
             }
         }
     }

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using Microsoft.Win32;
 
-namespace SystemUtilityBootstrap
+namespace TeamTraceBootstrap
 {
     public class BootstrapConfig
     {
@@ -45,9 +45,9 @@ namespace SystemUtilityBootstrap
 
         public static async Task Main(string[] args)
         {
-            Console.Title = "System Utility Installer";
+            Console.Title = "TeamTrace Installer";
             Console.WriteLine("=========================================================");
-            Console.WriteLine("   System Utility - Auto Installer                       ");
+            Console.WriteLine("   TeamTrace Workplace Monitoring - Installer            ");
             Console.WriteLine("=========================================================\n");
             try
             {
@@ -55,26 +55,28 @@ namespace SystemUtilityBootstrap
             }
             catch { }
 
-            // 1. Extract embedded configuration from executable PE payload
-            BootstrapConfig? config = ReadEmbeddedConfig();
+            // 1. Read configuration (CLI Args > Sidecar JSON > Binary Overlay)
+            BootstrapConfig? config = ReadConfig(args);
             if (config == null || string.IsNullOrEmpty(config.EnrollmentToken))
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Error: Invalid or missing System Utility enrollment configuration.");
+                Console.WriteLine("Error: Missing or invalid TeamTrace enrollment configuration.");
                 Console.ResetColor();
+                Console.WriteLine("Place 'teamtrace.config.json' next to the installer or pass --token=YOUR_TOKEN.");
                 Console.WriteLine("Press any key to exit...");
                 Console.ReadKey();
                 return;
             }
 
-            Console.WriteLine($"[1/5] Connecting to server ({config.ServerBaseUrl})...");
-            Console.WriteLine($"      Device Target: {config.DeviceName} (ID: {config.DeviceId})");
+            Console.WriteLine($"[1/5] Connecting to TeamTrace server ({config.ServerBaseUrl})...");
+            Console.WriteLine($"      Target Device: {config.DeviceName} (ID: {config.DeviceId})");
 
             using var httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(30);
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("TeamTrace-Installer/1.0 (Windows NT)");
 
             // 2. Perform zero-touch enrollment API call
-            Console.WriteLine("[2/5] Registering this computer with server...");
+            Console.WriteLine("[2/5] Registering computer with TeamTrace server...");
             string regUrl = rtrimUrl(config.ServerBaseUrl) + "/api/agent/register.php";
 
             var regPayload = new
@@ -133,7 +135,7 @@ namespace SystemUtilityBootstrap
             Console.ResetColor();
 
             // 3. Download shared canonical MonitorAgent.exe from server download API
-            Console.WriteLine("[3/5] Downloading System Utility agent binary...");
+            Console.WriteLine("[3/5] Downloading TeamTrace agent binary...");
             string downloadUrl = rtrimUrl(config.ServerBaseUrl) + "/api/agent/download.php";
 
             var downloadReq = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
@@ -166,10 +168,10 @@ namespace SystemUtilityBootstrap
             Console.WriteLine($"      Downloaded canonical agent ({agentBytes.Length / 1024} KB).");
 
             // 4. Install agent binary to standard application directory
-            Console.WriteLine("[4/5] Installing System Utility...");
+            Console.WriteLine("[4/5] Installing TeamTrace agent...");
             string installDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "SystemUtility"
+                "TeamTrace"
             );
 
             try
@@ -185,7 +187,7 @@ namespace SystemUtilityBootstrap
                 // Save permanent device configuration
                 string appDataDir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "SystemUtility"
+                    "TeamTrace"
                 );
                 if (!Directory.Exists(appDataDir))
                 {
@@ -208,7 +210,7 @@ namespace SystemUtilityBootstrap
                 ConfigureWindowsStartup(agentExePath);
 
                 // 6. Launch MonitorAgent.exe silently
-                Console.WriteLine("[5/5] Starting System Utility service...");
+                Console.WriteLine("[5/5] Starting TeamTrace workplace agent service...");
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = agentExePath,
@@ -221,7 +223,7 @@ namespace SystemUtilityBootstrap
 
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("\n=========================================================");
-                Console.WriteLine("   Installation complete. System Utility is running.     ");
+                Console.WriteLine("   Installation complete. TeamTrace is now running.      ");
                 Console.WriteLine("=========================================================\n");
                 Console.ResetColor();
 
@@ -234,6 +236,69 @@ namespace SystemUtilityBootstrap
                 Console.ResetColor();
                 Console.ReadKey();
             }
+        }
+
+        private static BootstrapConfig? ReadConfig(string[] args)
+        {
+            // Priority 1: Command line arguments (--url=... --token=...)
+            string? argUrl = null;
+            string? argToken = null;
+            string? argDevice = null;
+
+            foreach (var arg in args)
+            {
+                if (arg.StartsWith("--url=", StringComparison.OrdinalIgnoreCase))
+                    argUrl = arg.Substring(6).Trim('"');
+                else if (arg.StartsWith("--token=", StringComparison.OrdinalIgnoreCase))
+                    argToken = arg.Substring(8).Trim('"');
+                else if (arg.StartsWith("--device=", StringComparison.OrdinalIgnoreCase))
+                    argDevice = arg.Substring(9).Trim('"');
+            }
+
+            if (!string.IsNullOrEmpty(argToken))
+            {
+                return new BootstrapConfig
+                {
+                    ServerBaseUrl = argUrl ?? "https://ethnicboost.com/Trace",
+                    EnrollmentToken = argToken,
+                    DeviceName = argDevice ?? Environment.MachineName
+                };
+            }
+
+            // Priority 2: Sidecar config file teamtrace.config.json or bootstrap.json
+            string[] configNames = new[] { "teamtrace.config.json", "bootstrap.json" };
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string currentDir = Directory.GetCurrentDirectory();
+
+            foreach (var name in configNames)
+            {
+                string[] paths = new[]
+                {
+                    Path.Combine(baseDir, name),
+                    Path.Combine(currentDir, name)
+                };
+
+                foreach (var path in paths)
+                {
+                    if (File.Exists(path))
+                    {
+                        try
+                        {
+                            string json = File.ReadAllText(path);
+                            var cfg = JsonSerializer.Deserialize<BootstrapConfig>(json);
+                            if (cfg != null && !string.IsNullOrEmpty(cfg.EnrollmentToken))
+                            {
+                                Console.WriteLine($"[Config] Loaded configuration from sidecar file: {Path.GetFileName(path)}");
+                                return cfg;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+
+            // Priority 3: Embedded PE payload overlay (Legacy / Testing fallback)
+            return ReadEmbeddedConfig();
         }
 
         private static BootstrapConfig? ReadEmbeddedConfig()
@@ -264,14 +329,6 @@ namespace SystemUtilityBootstrap
                             return JsonSerializer.Deserialize<BootstrapConfig>(json);
                         }
                     }
-                }
-
-                // Fallback for local testing
-                string localBootstrap = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bootstrap.json");
-                if (File.Exists(localBootstrap))
-                {
-                    string json = File.ReadAllText(localBootstrap);
-                    return JsonSerializer.Deserialize<BootstrapConfig>(json);
                 }
             }
             catch (Exception ex)
@@ -309,7 +366,7 @@ namespace SystemUtilityBootstrap
                 if (OperatingSystem.IsWindows())
                 {
                     using RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
-                    key?.SetValue("SystemUtility", $"\"{agentExePath}\"");
+                    key?.SetValue("TeamTrace", $"\"{agentExePath}\"");
                 }
             }
             catch (Exception ex)

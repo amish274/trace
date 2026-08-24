@@ -1,5 +1,5 @@
 <?php
-// tools/verify_agent.php - Direct EXE Agent Bootstrapper Verification Utility
+// tools/verify_agent.php - Agent Package & Executable Verification Utility
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
@@ -16,53 +16,90 @@ if (empty($packagePath)) {
         $deviceName = $stmt->fetchColumn();
         if ($deviceName) {
             $sanitized = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $deviceName);
-            $packagePath = __DIR__ . "/../storage/packages/System-Utility-{$sanitized}.exe";
+            $possiblePaths = [
+                __DIR__ . "/../storage/packages/TeamTraceSetup-{$sanitized}.zip",
+                __DIR__ . "/../storage/packages/TeamTraceSetup-{$sanitized}.exe",
+                __DIR__ . "/../storage/packages/System-Utility-{$sanitized}.exe"
+            ];
+            foreach ($possiblePaths as $p) {
+                if (file_exists($p)) {
+                    $packagePath = $p;
+                    break;
+                }
+            }
         }
     }
 }
 
 if (empty($packagePath)) {
-    die("Usage: php tools/verify_agent.php --package=/path/to/System-Utility-XXX.exe OR --device-id=123\n");
+    die("Usage: php tools/verify_agent.php --package=/path/to/TeamTraceSetup-XXX.exe|zip OR --device-id=123\n");
 }
 
-echo "Verifying Direct Agent Executable: {$packagePath}\n";
+echo "Verifying TeamTrace Agent Package: {$packagePath}\n";
 
 if (!file_exists($packagePath)) {
-    die("FAILED: Package executable file does not exist.\n");
+    die("FAILED: Package file does not exist.\n");
 }
 
 $fileBytes = file_get_contents($packagePath);
 $fileSize = strlen($fileBytes);
 if ($fileSize <= 0) {
-    die("FAILED: Executable file size is 0.\n");
+    die("FAILED: Package file size is 0.\n");
 }
 
 $sizeMb = round($fileSize / (1024 * 1024), 2);
 $sizeKb = round($fileSize / 1024, 2);
 $displaySize = $sizeMb >= 1.0 ? "{$sizeMb} MB" : "{$sizeKb} KB";
 
-// 1. Verify PE Windows Header
-if (substr($fileBytes, 0, 2) !== 'MZ') {
-    die("FAILED: File is not a valid Windows Portable Executable (missing 'MZ' header).\n");
+$bootstrap = null;
+$packageType = "Direct Executable Overlay";
+
+if (str_ends_with(strtolower($packagePath), '.zip')) {
+    $packageType = "Authenticode-Safe ZIP Bundle";
+    $zip = new ZipArchive();
+    if ($zip->open($packagePath) !== true) {
+        die("FAILED: Cannot open ZIP archive.\n");
+    }
+    
+    $configContent = $zip->getFromName('teamtrace.config.json');
+    if (!$configContent) {
+        $configContent = $zip->getFromName('bootstrap.json');
+    }
+    if (!$configContent) {
+        die("FAILED: ZIP archive is missing teamtrace.config.json.\n");
+    }
+
+    $exeStream = $zip->getFromName('TeamTraceBootstrap.exe');
+    if (!$exeStream || substr($exeStream, 0, 2) !== 'MZ') {
+        die("FAILED: ZIP archive does not contain a valid TeamTraceBootstrap.exe binary.\n");
+    }
+
+    $bootstrap = json_decode($configContent, true);
+    $zip->close();
+} else {
+    // 1. Verify PE Windows Header
+    if (substr($fileBytes, 0, 2) !== 'MZ') {
+        die("FAILED: File is not a valid Windows Portable Executable (missing 'MZ' header).\n");
+    }
+
+    // 2. Locate embedded JSON payload between tags
+    $tagStart = "###TEAMTRACE_BOOTSTRAP_START###";
+    $tagEnd = "###TEAMTRACE_BOOTSTRAP_END###";
+
+    $startIndex = strpos($fileBytes, $tagStart);
+    if ($startIndex === false) {
+        die("FAILED: Embedded payload start tag '{$tagStart}' not found in executable.\n");
+    }
+
+    $startIndex += strlen($tagStart);
+    $endIndex = strpos($fileBytes, $tagEnd, $startIndex);
+    if ($endIndex === false) {
+        die("FAILED: Embedded payload end tag '{$tagEnd}' not found in executable.\n");
+    }
+
+    $jsonRaw = trim(substr($fileBytes, $startIndex, $endIndex - $startIndex));
+    $bootstrap = json_decode($jsonRaw, true);
 }
-
-// 2. Locate embedded JSON payload between tags
-$tagStart = "###TEAMTRACE_BOOTSTRAP_START###";
-$tagEnd = "###TEAMTRACE_BOOTSTRAP_END###";
-
-$startIndex = strpos($fileBytes, $tagStart);
-if ($startIndex === false) {
-    die("FAILED: Embedded payload start tag '{$tagStart}' not found in executable.\n");
-}
-
-$startIndex += strlen($tagStart);
-$endIndex = strpos($fileBytes, $tagEnd, $startIndex);
-if ($endIndex === false) {
-    die("FAILED: Embedded payload end tag '{$tagEnd}' not found in executable.\n");
-}
-
-$jsonRaw = trim(substr($fileBytes, $startIndex, $endIndex - $startIndex));
-$bootstrap = json_decode($jsonRaw, true);
 
 if (!$bootstrap) {
     die("FAILED: Embedded payload is not valid JSON.\n");
@@ -81,14 +118,13 @@ if (empty($bootstrap['device_id'])) {
 }
 
 // 3. Security Audit Check
-
-if (defined('APP_KEY') && !empty(APP_KEY) && strpos($jsonRaw, APP_KEY) !== false) {
+if (defined('APP_KEY') && !empty(APP_KEY) && strpos(json_encode($bootstrap), APP_KEY) !== false) {
     die("FAILED SECURITY AUDIT: APP_KEY detected inside embedded payload!\n");
 }
 
-echo "SUCCESS: Direct Agent Executable passed all verification checks!\n";
+echo "SUCCESS: TeamTrace Agent Package passed all verification checks!\n";
 echo "    - File: " . basename($packagePath) . " ({$displaySize})\n";
-echo "    - File Format: Windows PE Executable (MZ header verified)\n";
+echo "    - Package Type: {$packageType}\n";
 echo "    - Server Base URL: {$bootstrap['server_base_url']}\n";
 echo "    - Device Target: {$bootstrap['device_name']} (ID: {$bootstrap['device_id']})\n";
 echo "    - One-Time Enrollment Token: " . substr($bootstrap['enrollment_token'], 0, 12) . "...\n";
