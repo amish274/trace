@@ -32,16 +32,11 @@ $settStmt->execute([':id' => $deviceId]);
 
 echo "[1/8] Created Test Employee (ID: {$empId}) & Active Device (ID: {$deviceId})... SUCCESS\n";
 
-// [2/8] Create Controlled Test Image
-$im = imagecreatetruecolor(400, 300);
-$bgColor = imagecolorallocate($im, 40, 120, 220);
-$textColor = imagecolorallocate($im, 255, 255, 255);
-imagefill($im, 0, 0, $bgColor);
-imagestring($im, 5, 20, 140, "System Utility Test Image - Device {$deviceId}", $textColor);
-
+// [2/8] Create Controlled Test Image (Raw valid JPEG byte stream)
+$base64Jpeg = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+$jpegBytes = base64_decode($base64Jpeg);
 $tmpImgPath = sys_get_temp_dir() . '/shot_' . time() . '_' . rand(100, 999) . '.jpg';
-imagejpeg($im, $tmpImgPath, 80);
-imagedestroy($im);
+file_put_contents($tmpImgPath, $jpegBytes);
 
 $imgSize = filesize($tmpImgPath);
 echo "[2/8] Generated Controlled Test Image ({$tmpImgPath}, {$imgSize} bytes)... SUCCESS\n";
