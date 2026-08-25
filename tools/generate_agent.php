@@ -89,13 +89,11 @@ function generateAgentPackage(int $deviceId, string $token, string $serverUrl = 
             throw new Exception("Failed creating ZIP archive at {$outputPath}");
         }
 
-        // Add signed executable under both 'System Utility.exe' and 'TeamTraceBootstrap.exe'
+        // Add signed executable as 'System Utility.exe'
         $zip->addFile($bootstrapBase, 'System Utility.exe');
-        $zip->addFile($bootstrapBase, 'TeamTraceBootstrap.exe');
 
-        // Add canonical system-utility.config.json AND teamtrace.config.json for fallback compatibility
+        // Add canonical system-utility.config.json
         $zip->addFromString('system-utility.config.json', $bootstrapJson);
-        $zip->addFromString('teamtrace.config.json', $bootstrapJson);
         $zip->close();
     } else {
         // Legacy Single-File Binary Overlay Package

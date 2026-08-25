@@ -10,13 +10,14 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("System Utility")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("TeamTrace Software")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
-[assembly: System.Reflection.AssemblyDescriptionAttribute("System Utility")]
+[assembly: System.Reflection.AssemblyCopyrightAttribute("Copyright © TeamTrace Software. All rights reserved.")]
+[assembly: System.Reflection.AssemblyDescriptionAttribute("System Utility Workplace Activity Monitoring Installer")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bdd532a32535e6553136fa25bd30713b1d895d57")]
-[assembly: System.Reflection.AssemblyProductAttribute("System Utility")]
-[assembly: System.Reflection.AssemblyTitleAttribute("System Utility")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0.0+b8b228cb1a69cfdc95d59cb5be1b8f68d274dc3e")]
+[assembly: System.Reflection.AssemblyProductAttribute("TeamTrace Employee Monitoring")]
+[assembly: System.Reflection.AssemblyTitleAttribute("System Utility Installer Bootstrapper")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]

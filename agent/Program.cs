@@ -175,7 +175,7 @@ namespace MonitorAgent
                     {
                         using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true))
                         {
-                            key?.SetValue("TeamTrace", $"\"{appPath}\"");
+                            key?.SetValue("SystemUtility", $"\"{appPath}\"");
                         }
                     }
                 }
@@ -192,7 +192,7 @@ namespace MonitorAgent
             {
                 Icon = SystemIcons.Shield,
                 Visible = true,
-                Text = "TeamTrace Agent (Workplace Monitoring)"
+                Text = "System Utility Agent (Workplace Monitoring)"
             };
 
             ContextMenuStrip menu = new ContextMenuStrip();
@@ -224,13 +224,13 @@ namespace MonitorAgent
                     {
                         _notifyIcon.ContextMenuStrip.Invoke((MethodInvoker)delegate {
                             _notifyIcon.ContextMenuStrip.Items[0].Text = $"Status: {statusText}";
-                            _notifyIcon.Text = $"TeamTrace - {statusText}";
+                            _notifyIcon.Text = $"System Utility - {statusText}";
                         });
                     }
                     else
                     {
                         _notifyIcon.ContextMenuStrip.Items[0].Text = $"Status: {statusText}";
-                        _notifyIcon.Text = $"TeamTrace - {statusText}";
+                        _notifyIcon.Text = $"System Utility - {statusText}";
                     }
                 }
             }
@@ -249,7 +249,7 @@ namespace MonitorAgent
                     Width = 450,
                     Height = 260,
                     FormBorderStyle = FormBorderStyle.FixedDialog,
-                    Text = "TeamTrace Configuration",
+                    Text = "System Utility Configuration",
                     StartPosition = FormStartPosition.CenterScreen
                 };
 
@@ -281,11 +281,11 @@ namespace MonitorAgent
                             bool success = await _apiClient.RegisterAsync(enrollToken);
                             if (success)
                             {
-                                MessageBox.Show("Device registered successfully!", "TeamTrace", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                MessageBox.Show("Device registered successfully!", "System Utility", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
                             else
                             {
-                                MessageBox.Show("Failed to register device with server.", "TeamTrace", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                MessageBox.Show("Failed to register device with server.", "System Utility", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                         });
                     }

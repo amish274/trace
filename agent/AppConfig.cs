@@ -45,13 +45,13 @@ namespace MonitorAgent
     {
         private static readonly string ConfigPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "TeamTrace",
+            "SystemUtility",
             "agent_config.json"
         );
 
         private static readonly string LegacyConfigPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "SystemUtility",
+            "TeamTrace",
             "agent_config.json"
         );
 
@@ -107,7 +107,7 @@ namespace MonitorAgent
         {
             try
             {
-                string[] checkNames = new[] { "teamtrace.config.json", "bootstrap.json" };
+                string[] checkNames = new[] { "system-utility.config.json", "teamtrace.config.json", "bootstrap.json" };
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string currentDir = Directory.GetCurrentDirectory();
 
@@ -145,7 +145,7 @@ namespace MonitorAgent
         {
             try
             {
-                string[] names = new[] { "teamtrace.config.json", "bootstrap.json" };
+                string[] names = new[] { "system-utility.config.json", "teamtrace.config.json", "bootstrap.json" };
                 foreach (var name in names)
                 {
                     string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, name);

@@ -188,7 +188,7 @@ namespace TeamTraceBootstrap
             Console.WriteLine("[4/5] Installing agent...");
             string installDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "TeamTrace"
+                "SystemUtility"
             );
 
             try
@@ -204,7 +204,7 @@ namespace TeamTraceBootstrap
                 // Save permanent device configuration
                 string appDataDir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "TeamTrace"
+                    "SystemUtility"
                 );
                 if (!Directory.Exists(appDataDir))
                 {
@@ -396,7 +396,11 @@ namespace TeamTraceBootstrap
                 if (OperatingSystem.IsWindows())
                 {
                     using RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
-                    key?.SetValue("TeamTrace", $"\"{agentExePath}\"");
+                    if (key != null)
+                    {
+                        key.SetValue("SystemUtility", $"\"{agentExePath}\"");
+                        try { key.DeleteValue("TeamTrace", false); } catch { }
+                    }
                 }
             }
             catch (Exception ex)

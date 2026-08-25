@@ -86,9 +86,6 @@
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
-            },
-            "Microsoft.WindowsDesktop.App.WindowsForms": {
-              "privateAssets": "none"
             }
           },
           "runtimeIdentifierGraphPath": "/Users/amishbhagwagar/.dotnet/sdk/8.0.424/PortableRuntimeIdentifierGraph.json"
