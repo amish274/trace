@@ -111,10 +111,12 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+curl_setopt($ch, CURLOPT_TIMEOUT, 60);
 $downloadData = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+$curlErr = curl_error($ch);
 curl_close($ch);
 
 if ($httpCode === 200 && strlen($downloadData) === filesize($generatedPath)) {
@@ -133,7 +135,7 @@ if ($httpCode === 200 && strlen($downloadData) === filesize($generatedPath)) {
     }
     @unlink($downloadDest);
 } else {
-    die("FAILED: Download endpoint returned HTTP {$httpCode}, Received " . strlen($downloadData) . " bytes (Expected " . filesize($generatedPath) . " bytes).\n");
+    die("FAILED: Download endpoint returned HTTP {$httpCode}, Received " . strlen($downloadData) . " bytes (Expected " . filesize($generatedPath) . " bytes). Curl Error: '{$curlErr}' URL: '{$fullUrl}'\n");
 }
 
 // 9. Confirm nonexistent package handling
@@ -146,15 +148,17 @@ $ch = curl_init($fakeFullUrl);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 $fakeData = curl_exec($ch);
 $fakeHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$fakeErr = curl_error($ch);
 curl_close($ch);
 
 if ($fakeHttpCode === 404 && strpos($fakeData, "Error:") !== false) {
     echo "SUCCESS (HTTP 404 with diagnostic error message: " . trim($fakeData) . ")\n";
 } else {
-    die("FAILED: Nonexistent package did not return 404! HTTP: {$fakeHttpCode}\n");
+    die("FAILED: Nonexistent package did not return 404! HTTP: {$fakeHttpCode}, Err: '{$fakeErr}'\n");
 }
 
 // 10. Clean up test data/files
