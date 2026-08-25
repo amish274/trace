@@ -92,6 +92,7 @@ $stmt->execute([
     ':width' => $width,
     ':height' => $height
 ]);
+$screenshotId = (int)$db->lastInsertId();
 
 // Also record corresponding activity entry
 $actStmt = $db->prepare("INSERT INTO activity (device_id, captured_at, activity_status, idle_seconds) VALUES (:device_id, :captured_at, :status, :idle_seconds)");
@@ -109,5 +110,5 @@ $updateStmt->execute([':id' => $device['id']]);
 respondJson([
     'success' => true,
     'message' => 'Screenshot uploaded successfully',
-    'screenshot_id' => (int)$db->lastInsertId()
+    'screenshot_id' => $screenshotId
 ]);
