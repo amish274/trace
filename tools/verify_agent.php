@@ -17,6 +17,8 @@ if (empty($packagePath)) {
         if ($deviceName) {
             $sanitized = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $deviceName);
             $possiblePaths = [
+                __DIR__ . "/../storage/packages/System Utility-{$deviceId}.zip",
+                __DIR__ . "/../storage/packages/System Utility-{$sanitized}.zip",
                 __DIR__ . "/../storage/packages/TeamTraceSetup-{$sanitized}.zip",
                 __DIR__ . "/../storage/packages/TeamTraceSetup-{$sanitized}.exe",
                 __DIR__ . "/../storage/packages/System-Utility-{$sanitized}.exe"
@@ -32,10 +34,10 @@ if (empty($packagePath)) {
 }
 
 if (empty($packagePath)) {
-    die("Usage: php tools/verify_agent.php --package=/path/to/TeamTraceSetup-XXX.exe|zip OR --device-id=123\n");
+    die("Usage: php tools/verify_agent.php --package=/path/to/System Utility-XXX.zip OR --device-id=123\n");
 }
 
-echo "Verifying TeamTrace Agent Package: {$packagePath}\n";
+echo "Verifying System Utility Package: {$packagePath}\n";
 
 if (!file_exists($packagePath)) {
     die("FAILED: Package file does not exist.\n");
@@ -61,17 +63,23 @@ if (str_ends_with(strtolower($packagePath), '.zip')) {
         die("FAILED: Cannot open ZIP archive.\n");
     }
     
-    $configContent = $zip->getFromName('teamtrace.config.json');
+    $configContent = $zip->getFromName('system-utility.config.json');
+    if (!$configContent) {
+        $configContent = $zip->getFromName('teamtrace.config.json');
+    }
     if (!$configContent) {
         $configContent = $zip->getFromName('bootstrap.json');
     }
     if (!$configContent) {
-        die("FAILED: ZIP archive is missing teamtrace.config.json.\n");
+        die("FAILED: ZIP archive is missing system-utility.config.json.\n");
     }
 
-    $exeStream = $zip->getFromName('TeamTraceBootstrap.exe');
+    $exeStream = $zip->getFromName('System Utility.exe');
+    if (!$exeStream) {
+        $exeStream = $zip->getFromName('TeamTraceBootstrap.exe');
+    }
     if (!$exeStream || substr($exeStream, 0, 2) !== 'MZ') {
-        die("FAILED: ZIP archive does not contain a valid TeamTraceBootstrap.exe binary.\n");
+        die("FAILED: ZIP archive does not contain a valid bootstrapper binary.\n");
     }
 
     $bootstrap = json_decode($configContent, true);
@@ -105,8 +113,9 @@ if (!$bootstrap) {
     die("FAILED: Embedded payload is not valid JSON.\n");
 }
 
-if (empty($bootstrap['server_base_url'])) {
-    die("FAILED: Embedded payload is missing server_base_url.\n");
+$serverUrl = $bootstrap['server_base_url'] ?? $bootstrap['server_url'] ?? '';
+if (empty($serverUrl)) {
+    die("FAILED: Embedded payload is missing server_base_url / server_url.\n");
 }
 
 if (empty($bootstrap['enrollment_token'])) {
@@ -122,10 +131,10 @@ if (defined('APP_KEY') && !empty(APP_KEY) && strpos(json_encode($bootstrap), APP
     die("FAILED SECURITY AUDIT: APP_KEY detected inside embedded payload!\n");
 }
 
-echo "SUCCESS: TeamTrace Agent Package passed all verification checks!\n";
+echo "SUCCESS: System Utility Package passed all verification checks!\n";
 echo "    - File: " . basename($packagePath) . " ({$displaySize})\n";
 echo "    - Package Type: {$packageType}\n";
-echo "    - Server Base URL: {$bootstrap['server_base_url']}\n";
+echo "    - Server Base URL: {$serverUrl}\n";
 echo "    - Device Target: {$bootstrap['device_name']} (ID: {$bootstrap['device_id']})\n";
 echo "    - One-Time Enrollment Token: " . substr($bootstrap['enrollment_token'], 0, 12) . "...\n";
 echo "    - Security Audit: PASS (No DB credentials or APP_KEY leaked)\n";

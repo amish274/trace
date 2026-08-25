@@ -43,11 +43,13 @@ if (!$device) {
     die("Error: Device record not found.");
 }
 
-// 3. Construct candidate package paths (Canonical ZIP Preference > Legacy EXE Fallback)
+// 3. Construct candidate package paths (Canonical System Utility-ID.zip Preference > Legacy Fallbacks)
 $sanitizedDeviceName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $device['device_name']);
 $storageDir = realpath(__DIR__ . '/../storage/packages');
 
 $candidateFiles = [
+    "System Utility-{$deviceId}.zip",
+    "System Utility-{$sanitizedDeviceName}.zip",
     "TeamTraceSetup-{$sanitizedDeviceName}.zip",
     "TeamTraceSetup-{$sanitizedDeviceName}.exe",
     "System-Utility-{$sanitizedDeviceName}.exe"
@@ -66,7 +68,7 @@ foreach ($candidateFiles as $candidateName) {
 }
 
 if (empty($packagePath)) {
-    $expectedName = "TeamTraceSetup-{$sanitizedDeviceName}.zip";
+    $expectedName = "System Utility-{$deviceId}.zip";
     http_response_code(404);
     die("Error: Agent package for device '" . htmlspecialchars($device['device_name']) . "' (ID: {$deviceId}) is not available on server. Expected file: {$expectedName}. Please click 'Generate Agent' in the Admin Panel.");
 }

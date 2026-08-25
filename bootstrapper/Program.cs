@@ -16,6 +16,9 @@ namespace TeamTraceBootstrap
         [JsonPropertyName("server_base_url")]
         public string ServerBaseUrl { get; set; } = "";
 
+        [JsonPropertyName("server_url")]
+        public string ServerUrl { get; set; } = "";
+
         [JsonPropertyName("enrollment_token")]
         public string EnrollmentToken { get; set; } = "";
 
@@ -25,8 +28,14 @@ namespace TeamTraceBootstrap
         [JsonPropertyName("device_name")]
         public string DeviceName { get; set; } = "";
 
+        [JsonPropertyName("employee_name")]
+        public string EmployeeName { get; set; } = "";
+
         [JsonPropertyName("agent_version")]
         public string AgentVersion { get; set; } = "1.0.0";
+
+        [JsonPropertyName("created_at")]
+        public string CreatedAt { get; set; } = "";
     }
 
     public class AgentConfigPayload
@@ -45,9 +54,9 @@ namespace TeamTraceBootstrap
 
         public static async Task Main(string[] args)
         {
-            Console.Title = "TeamTrace Installer";
+            Console.Title = "System Utility Installer";
             Console.WriteLine("=========================================================");
-            Console.WriteLine("   TeamTrace Workplace Monitoring - Installer            ");
+            Console.WriteLine("   System Utility Workplace Monitoring - Installer       ");
             Console.WriteLine("=========================================================\n");
             try
             {
@@ -60,23 +69,31 @@ namespace TeamTraceBootstrap
             if (config == null || string.IsNullOrEmpty(config.EnrollmentToken))
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Error: Missing or invalid TeamTrace enrollment configuration.");
+                Console.WriteLine("Error: Invalid or missing System Utility enrollment configuration.");
                 Console.ResetColor();
-                Console.WriteLine("Place 'teamtrace.config.json' next to the installer or pass --token=YOUR_TOKEN.");
+                Console.WriteLine("Place 'system-utility.config.json' next to the installer or pass --token=YOUR_TOKEN.");
                 Console.WriteLine("Press any key to exit...");
-                Console.ReadKey();
+                try { Console.ReadKey(); } catch { }
                 return;
             }
 
-            Console.WriteLine($"[1/5] Connecting to TeamTrace server ({config.ServerBaseUrl})...");
+            // Resolve server base URL from server_base_url or server_url
+            string effectiveServerUrl = !string.IsNullOrEmpty(config.ServerBaseUrl) ? config.ServerBaseUrl : config.ServerUrl;
+            if (string.IsNullOrEmpty(effectiveServerUrl))
+            {
+                effectiveServerUrl = "https://ethnicboost.com/Trace";
+            }
+            config.ServerBaseUrl = effectiveServerUrl;
+
+            Console.WriteLine($"[1/5] Connecting to System Utility server ({config.ServerBaseUrl})...");
             Console.WriteLine($"      Target Device: {config.DeviceName} (ID: {config.DeviceId})");
 
             using var httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(30);
-            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("TeamTrace-Installer/1.0 (Windows NT)");
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("SystemUtility-Installer/1.0 (Windows NT)");
 
             // 2. Perform zero-touch enrollment API call
-            Console.WriteLine("[2/5] Registering computer with TeamTrace server...");
+            Console.WriteLine("[2/5] Registering computer with System Utility server...");
             string regUrl = rtrimUrl(config.ServerBaseUrl) + "/api/agent/register.php";
 
             var regPayload = new
@@ -100,7 +117,7 @@ namespace TeamTraceBootstrap
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error: Cannot reach server at {regUrl}. {ex.Message}");
                 Console.ResetColor();
-                Console.ReadKey();
+                try { Console.ReadKey(); } catch { }
                 return;
             }
 
@@ -110,7 +127,7 @@ namespace TeamTraceBootstrap
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error: Server registration failed ({regResponse.StatusCode}): {errText}");
                 Console.ResetColor();
-                Console.ReadKey();
+                try { Console.ReadKey(); } catch { }
                 return;
             }
 
@@ -126,7 +143,7 @@ namespace TeamTraceBootstrap
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Error: Server returned invalid registration response.");
                 Console.ResetColor();
-                Console.ReadKey();
+                try { Console.ReadKey(); } catch { }
                 return;
             }
 
@@ -135,7 +152,7 @@ namespace TeamTraceBootstrap
             Console.ResetColor();
 
             // 3. Download shared canonical MonitorAgent.exe from server download API
-            Console.WriteLine("[3/5] Downloading TeamTrace agent binary...");
+            Console.WriteLine("[3/5] Downloading agent binary...");
             string downloadUrl = rtrimUrl(config.ServerBaseUrl) + "/api/agent/download.php";
 
             var downloadReq = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
@@ -151,7 +168,7 @@ namespace TeamTraceBootstrap
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error: Failed downloading agent binary: {ex.Message}");
                 Console.ResetColor();
-                Console.ReadKey();
+                try { Console.ReadKey(); } catch { }
                 return;
             }
 
@@ -160,7 +177,7 @@ namespace TeamTraceBootstrap
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error: Failed downloading agent binary ({downloadRes.StatusCode})");
                 Console.ResetColor();
-                Console.ReadKey();
+                try { Console.ReadKey(); } catch { }
                 return;
             }
 
@@ -168,7 +185,7 @@ namespace TeamTraceBootstrap
             Console.WriteLine($"      Downloaded canonical agent ({agentBytes.Length / 1024} KB).");
 
             // 4. Install agent binary to standard application directory
-            Console.WriteLine("[4/5] Installing TeamTrace agent...");
+            Console.WriteLine("[4/5] Installing agent...");
             string installDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "TeamTrace"
@@ -210,7 +227,7 @@ namespace TeamTraceBootstrap
                 ConfigureWindowsStartup(agentExePath);
 
                 // 6. Launch MonitorAgent.exe silently
-                Console.WriteLine("[5/5] Starting TeamTrace workplace agent service...");
+                Console.WriteLine("[5/5] Starting agent service...");
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = agentExePath,
@@ -223,7 +240,7 @@ namespace TeamTraceBootstrap
 
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("\n=========================================================");
-                Console.WriteLine("   Installation complete. TeamTrace is now running.      ");
+                Console.WriteLine("   Installation complete. System Utility is now running.");
                 Console.WriteLine("=========================================================\n");
                 Console.ResetColor();
 
@@ -234,7 +251,7 @@ namespace TeamTraceBootstrap
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error during agent installation: {ex.Message}");
                 Console.ResetColor();
-                Console.ReadKey();
+                try { Console.ReadKey(); } catch { }
             }
         }
 
@@ -265,8 +282,8 @@ namespace TeamTraceBootstrap
                 };
             }
 
-            // Priority 2: Sidecar config file teamtrace.config.json or bootstrap.json
-            string[] configNames = new[] { "teamtrace.config.json", "bootstrap.json" };
+            // Priority 2: Sidecar config file system-utility.config.json, teamtrace.config.json or bootstrap.json
+            string[] configNames = new[] { "system-utility.config.json", "teamtrace.config.json", "bootstrap.json" };
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             string currentDir = Directory.GetCurrentDirectory();
 
@@ -288,6 +305,10 @@ namespace TeamTraceBootstrap
                             var cfg = JsonSerializer.Deserialize<BootstrapConfig>(json);
                             if (cfg != null && !string.IsNullOrEmpty(cfg.EnrollmentToken))
                             {
+                                if (string.IsNullOrEmpty(cfg.ServerBaseUrl) && !string.IsNullOrEmpty(cfg.ServerUrl))
+                                {
+                                    cfg.ServerBaseUrl = cfg.ServerUrl;
+                                }
                                 Console.WriteLine($"[Config] Loaded configuration from sidecar file: {Path.GetFileName(path)}");
                                 return cfg;
                             }
@@ -308,7 +329,11 @@ namespace TeamTraceBootstrap
                 string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
                 if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
                 {
-                    exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TeamTraceBootstrap.exe");
+                    exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "System Utility.exe");
+                    if (!File.Exists(exePath))
+                    {
+                        exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TeamTraceBootstrap.exe");
+                    }
                 }
 
                 if (File.Exists(exePath))
@@ -326,7 +351,12 @@ namespace TeamTraceBootstrap
                         {
                             int jsonLength = endIdx - jsonStart;
                             string json = Encoding.UTF8.GetString(fileBytes, jsonStart, jsonLength).Trim();
-                            return JsonSerializer.Deserialize<BootstrapConfig>(json);
+                            var cfg = JsonSerializer.Deserialize<BootstrapConfig>(json);
+                            if (cfg != null && string.IsNullOrEmpty(cfg.ServerBaseUrl) && !string.IsNullOrEmpty(cfg.ServerUrl))
+                            {
+                                cfg.ServerBaseUrl = cfg.ServerUrl;
+                            }
+                            return cfg;
                         }
                     }
                 }

@@ -61,7 +61,10 @@ if ($zip->open($zipPath) !== true) {
     die("FAILED: Cannot open created ZIP archive.\n");
 }
 
-$zippedExeBytes = $zip->getFromName('TeamTraceBootstrap.exe');
+$zippedExeBytes = $zip->getFromName('System Utility.exe');
+if (!$zippedExeBytes) {
+    $zippedExeBytes = $zip->getFromName('TeamTraceBootstrap.exe');
+}
 $baseExeBytes = file_get_contents(__DIR__ . '/../build/windows/TeamTraceBootstrap.exe');
 $zip->close();
 

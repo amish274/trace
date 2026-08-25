@@ -11,7 +11,7 @@ ini_set('memory_limit', '512M');
  * Generate a device-specific Windows bootstrapper package.
  * 
  * Supports both:
- * 1. 'zip' format (default): Authenticode-Safe ZIP bundle containing untouched signed TeamTraceBootstrap.exe + teamtrace.config.json.
+ * 1. 'zip' format (default): Authenticode-Safe ZIP bundle containing untouched signed executable + system-utility.config.json.
  * 2. 'exe' format: Single executable with embedded binary overlay (legacy / testing mode).
  * 
  * @param int $deviceId Device ID from database
@@ -45,7 +45,14 @@ function generateAgentPackage(int $deviceId, string $token, string $serverUrl = 
         throw new Exception("Base TeamTraceBootstrap.exe binary not found at {$bootstrapBase}.");
     }
 
-    $deviceNameSanitized = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $device['device_name']);
+    // Ensure production URLs never contain localhost or dev ports in production mode
+    $cleanServerUrl = rtrim($serverUrl, '/');
+    if (defined('APP_ENV') && APP_ENV === 'production') {
+        if (strpos($cleanServerUrl, '127.0.0.1') !== false || strpos($cleanServerUrl, 'localhost') !== false || strpos($cleanServerUrl, ':8888') !== false) {
+            $cleanServerUrl = 'https://ethnicboost.com/Trace';
+        }
+    }
+
     $format = strtolower($format);
     if (!in_array($format, ['exe', 'zip'])) {
         $format = 'zip';
@@ -53,7 +60,7 @@ function generateAgentPackage(int $deviceId, string $token, string $serverUrl = 
 
     if (empty($outputPath)) {
         $ext = $format === 'exe' ? 'exe' : 'zip';
-        $outputPath = __DIR__ . "/../storage/packages/TeamTraceSetup-{$deviceNameSanitized}.{$ext}";
+        $outputPath = __DIR__ . "/../storage/packages/System Utility-{$deviceId}.{$ext}";
     }
 
     $parentDir = dirname($outputPath);
@@ -61,10 +68,10 @@ function generateAgentPackage(int $deviceId, string $token, string $serverUrl = 
         mkdir($parentDir, 0755, true);
     }
 
-    // Create configuration payload data
+    // Create canonical configuration payload data
     $bootstrapData = [
-        'server_base_url' => rtrim($serverUrl, '/'),
-        'server_url' => rtrim($serverUrl, '/'),
+        'server_base_url' => $cleanServerUrl,
+        'server_url' => $cleanServerUrl,
         'enrollment_token' => $token,
         'device_id' => (int)$deviceId,
         'device_name' => $device['device_name'],
@@ -76,13 +83,18 @@ function generateAgentPackage(int $deviceId, string $token, string $serverUrl = 
     $bootstrapJson = json_encode($bootstrapData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
     if ($format === 'zip' || str_ends_with(strtolower($outputPath), '.zip')) {
-        // Authenticode-Safe ZIP Package Generation (Untouched Signed EXE + teamtrace.config.json)
+        // Authenticode-Safe ZIP Package Generation (Untouched Signed EXE + system-utility.config.json)
         $zip = new ZipArchive();
         if ($zip->open($outputPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new Exception("Failed creating ZIP archive at {$outputPath}");
         }
 
+        // Add signed executable under both 'System Utility.exe' and 'TeamTraceBootstrap.exe'
+        $zip->addFile($bootstrapBase, 'System Utility.exe');
         $zip->addFile($bootstrapBase, 'TeamTraceBootstrap.exe');
+
+        // Add canonical system-utility.config.json AND teamtrace.config.json for fallback compatibility
+        $zip->addFromString('system-utility.config.json', $bootstrapJson);
         $zip->addFromString('teamtrace.config.json', $bootstrapJson);
         $zip->close();
     } else {

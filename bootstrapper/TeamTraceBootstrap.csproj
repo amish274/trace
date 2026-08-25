@@ -5,13 +5,14 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWindowsForms>true</UseWindowsForms>
+    <UseWindowsForms>false</UseWindowsForms>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <RootNamespace>TeamTraceBootstrap</RootNamespace>
     <AssemblyName>TeamTraceBootstrap</AssemblyName>
-    <AssemblyTitle>TeamTrace Installer Bootstrapper</AssemblyTitle>
+    <AssemblyTitle>System Utility Installer Bootstrapper</AssemblyTitle>
     <Product>TeamTrace Employee Monitoring</Product>
-    <Description>TeamTrace Workplace Activity Monitoring Installer</Description>
+    <Description>System Utility Workplace Activity Monitoring Installer</Description>
     <Company>TeamTrace Software</Company>
     <Copyright>Copyright © TeamTrace Software. All rights reserved.</Copyright>
     <Version>1.0.0.0</Version>

@@ -9,7 +9,7 @@ $options = getopt("", ["device-id:"]);
 $deviceId = (int)($options['device-id'] ?? 5);
 
 echo "=====================================================\n";
-echo "   TeamTrace Agent Download Diagnostic Utility       \n";
+echo "   System Utility Agent Download Diagnostic Utility  \n";
 echo "=====================================================\n\n";
 
 $db = getDbConnection();
@@ -27,10 +27,12 @@ if ($device) {
     exit(1);
 }
 
-// 2. Package File Existence Check (ZIP Preference > EXE Fallback)
+// 2. Package File Existence Check (System Utility ZIP Preference > Fallbacks)
 echo "[2/8] Checking package file location... ";
 $sanitizedName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $device['device_name']);
 $candidates = [
+    __DIR__ . "/../storage/packages/System Utility-{$deviceId}.zip",
+    __DIR__ . "/../storage/packages/System Utility-{$sanitizedName}.zip",
     __DIR__ . "/../storage/packages/TeamTraceSetup-{$sanitizedName}.zip",
     __DIR__ . "/../storage/packages/TeamTraceSetup-{$sanitizedName}.exe",
     __DIR__ . "/../storage/packages/System-Utility-{$sanitizedName}.exe"
