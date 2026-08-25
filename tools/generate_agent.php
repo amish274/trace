@@ -11,18 +11,18 @@ ini_set('memory_limit', '512M');
  * Generate a device-specific Windows bootstrapper package.
  * 
  * Supports both:
- * 1. 'exe' format: Single executable with embedded binary overlay (legacy / testing mode).
- * 2. 'zip' format: Authenticode-Safe ZIP bundle containing untouched signed TeamTraceBootstrap.exe + teamtrace.config.json.
+ * 1. 'zip' format (default): Authenticode-Safe ZIP bundle containing untouched signed TeamTraceBootstrap.exe + teamtrace.config.json.
+ * 2. 'exe' format: Single executable with embedded binary overlay (legacy / testing mode).
  * 
  * @param int $deviceId Device ID from database
  * @param string $token Plaintext 32-byte enrollment token
  * @param string $serverUrl Base URL of the TeamTrace server
  * @param string $outputPath Optional path to write output file
- * @param string $format 'exe' or 'zip'
+ * @param string $format 'zip' (default) or 'exe'
  * @return string Returns path to generated package file
  * @throws Exception On invalid parameters or file write errors
  */
-function generateAgentPackage(int $deviceId, string $token, string $serverUrl = SERVER_BASE_URL, string $outputPath = '', string $format = 'exe'): string {
+function generateAgentPackage(int $deviceId, string $token, string $serverUrl = SERVER_BASE_URL, string $outputPath = '', string $format = 'zip'): string {
     if ($deviceId <= 0) {
         throw new Exception("Invalid device ID parameter.");
     }
@@ -48,11 +48,11 @@ function generateAgentPackage(int $deviceId, string $token, string $serverUrl = 
     $deviceNameSanitized = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $device['device_name']);
     $format = strtolower($format);
     if (!in_array($format, ['exe', 'zip'])) {
-        $format = 'exe';
+        $format = 'zip';
     }
 
     if (empty($outputPath)) {
-        $ext = $format === 'zip' ? 'zip' : 'exe';
+        $ext = $format === 'exe' ? 'exe' : 'zip';
         $outputPath = __DIR__ . "/../storage/packages/TeamTraceSetup-{$deviceNameSanitized}.{$ext}";
     }
 
@@ -115,10 +115,10 @@ if (php_sapi_name() === 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath(
     $token = trim($options['token'] ?? '');
     $serverUrl = trim($options['server-url'] ?? SERVER_BASE_URL);
     $outputPath = trim($options['output'] ?? '');
-    $format = trim($options['format'] ?? 'exe');
+    $format = trim($options['format'] ?? 'zip');
 
     if ($deviceId <= 0 || empty($token)) {
-        die("Usage: php tools/generate_agent.php --device-id=123 --token=\"RAW_TOKEN\" [--server-url=\"https://...\"] [--format=exe|zip] [--output=\"/path/to/output\"]\n");
+        die("Usage: php tools/generate_agent.php --device-id=123 --token=\"RAW_TOKEN\" [--server-url=\"https://...\"] [--format=zip|exe] [--output=\"/path/to/output\"]\n");
     }
 
     try {

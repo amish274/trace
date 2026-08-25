@@ -27,16 +27,27 @@ if ($device) {
     exit(1);
 }
 
-// 2. Package File Existence Check
+// 2. Package File Existence Check (ZIP Preference > EXE Fallback)
 echo "[2/8] Checking package file location... ";
 $sanitizedName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $device['device_name']);
-$packageFilename = "System-Utility-{$sanitizedName}.exe";
-$packagePath = __DIR__ . "/../storage/packages/{$packageFilename}";
+$candidates = [
+    __DIR__ . "/../storage/packages/TeamTraceSetup-{$sanitizedName}.zip",
+    __DIR__ . "/../storage/packages/TeamTraceSetup-{$sanitizedName}.exe",
+    __DIR__ . "/../storage/packages/System-Utility-{$sanitizedName}.exe"
+];
 
-if (file_exists($packagePath)) {
+$packagePath = '';
+foreach ($candidates as $cand) {
+    if (file_exists($cand) && filesize($cand) > 0) {
+        $packagePath = $cand;
+        break;
+    }
+}
+
+if (!empty($packagePath)) {
     echo "SUCCESS ({$packagePath})\n";
 } else {
-    echo "NOTICE: Package not found. Triggering fast generator... ";
+    echo "NOTICE: Package not found. Triggering package generator... ";
     $token = bin2hex(random_bytes(32));
     $hash = hash('sha256', $token);
     $exp = date('Y-m-d H:i:s', strtotime('+24 hours'));
@@ -45,8 +56,8 @@ if (file_exists($packagePath)) {
 
     require_once __DIR__ . '/generate_agent.php';
     try {
-        generateAgentPackage($deviceId, $token, SERVER_BASE_URL, $packagePath);
-        echo "SUCCESS (Generated package)\n";
+        $packagePath = generateAgentPackage($deviceId, $token, SERVER_BASE_URL, '', 'zip');
+        echo "SUCCESS (Generated " . basename($packagePath) . ")\n";
     } catch (Exception $e) {
         echo "FAILED: Could not generate package: " . $e->getMessage() . "\n";
         exit(1);
@@ -85,13 +96,14 @@ if ($fileSize > 0) {
     exit(1);
 }
 
-// 6. PE32+ Header Check
-echo "[6/8] Auditing PE32+ Windows binary header... ";
+// 6. Header Verification (ZIP or PE Windows header)
+echo "[6/8] Auditing package binary/archive header... ";
 $header = file_get_contents($packagePath, false, null, 0, 2);
-if ($header === 'MZ') {
-    echo "SUCCESS (Valid 'MZ' Windows PE executable header)\n";
+if ($header === 'PK' || $header === 'MZ') {
+    $hdrType = $header === 'PK' ? 'ZIP Archive (PK)' : 'Windows PE Executable (MZ)';
+    echo "SUCCESS (Valid header: {$hdrType})\n";
 } else {
-    echo "FAILED: Invalid executable header (got '{$header}').\n";
+    echo "FAILED: Invalid executable/archive header (got '{$header}').\n";
     exit(1);
 }
 
@@ -111,7 +123,7 @@ if ($isValidSig) {
 // 8. End-to-End Signed HTTP Download Test
 echo "[8/8] Testing end-to-end HTTP download via curl... ";
 $fullUrl = SERVER_BASE_URL . "/admin/" . $signedUrl;
-$testOut = "/tmp/diagnostic_download_test.exe";
+$testOut = "/tmp/diagnostic_download_test_" . time();
 
 $ch = curl_init($fullUrl);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -124,8 +136,8 @@ curl_close($ch);
 if ($httpCode === 200 && strlen($downloadData) === $fileSize) {
     file_put_contents($testOut, $downloadData);
     $downloadHeader = file_get_contents($testOut, false, null, 0, 2);
-    if ($downloadHeader === 'MZ') {
-        echo "SUCCESS (HTTP 200, Content-Type: {$contentType}, Size: " . strlen($downloadData) . " bytes, Header: MZ)\n";
+    if ($downloadHeader === 'PK' || $downloadHeader === 'MZ') {
+        echo "SUCCESS (HTTP 200, Content-Type: {$contentType}, Size: " . strlen($downloadData) . " bytes, Header: {$downloadHeader})\n";
         @unlink($testOut);
     } else {
         echo "FAILED: Downloaded file header invalid.\n";

@@ -1,5 +1,5 @@
 <?php
-// admin/agent_download.php - Dedicated Authenticated/Signed Direct EXE Binary Streamer
+// admin/agent_download.php - Dedicated Authenticated/Signed Package Binary & ZIP Streamer
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -43,15 +43,32 @@ if (!$device) {
     die("Error: Device record not found.");
 }
 
-// 3. Construct package path and perform security checks
+// 3. Construct candidate package paths (Canonical ZIP Preference > Legacy EXE Fallback)
 $sanitizedDeviceName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $device['device_name']);
-$packageFilename = "System-Utility-{$sanitizedDeviceName}.exe";
 $storageDir = realpath(__DIR__ . '/../storage/packages');
-$packagePath = __DIR__ . "/../storage/packages/{$packageFilename}";
 
-if (!file_exists($packagePath) || filesize($packagePath) <= 0) {
+$candidateFiles = [
+    "TeamTraceSetup-{$sanitizedDeviceName}.zip",
+    "TeamTraceSetup-{$sanitizedDeviceName}.exe",
+    "System-Utility-{$sanitizedDeviceName}.exe"
+];
+
+$packagePath = '';
+$packageFilename = '';
+
+foreach ($candidateFiles as $candidateName) {
+    $fullPath = __DIR__ . "/../storage/packages/{$candidateName}";
+    if (file_exists($fullPath) && filesize($fullPath) > 0) {
+        $packagePath = $fullPath;
+        $packageFilename = $candidateName;
+        break;
+    }
+}
+
+if (empty($packagePath)) {
+    $expectedName = "TeamTraceSetup-{$sanitizedDeviceName}.zip";
     http_response_code(404);
-    die("Error: Windows Agent executable not generated yet. Please click 'Generate Agent' in the Admin Panel.");
+    die("Error: Agent package for device '" . htmlspecialchars($device['device_name']) . "' (ID: {$deviceId}) is not available on server. Expected file: {$expectedName}. Please click 'Generate Agent' in the Admin Panel.");
 }
 
 $realPackagePath = realpath($packagePath);
@@ -69,14 +86,20 @@ while (ob_get_level() > 0) {
     ob_end_clean();
 }
 
-// 6. Set HTTP headers for direct binary stream
-header('Content-Type: application/vnd.microsoft.portable-executable');
+// 6. Set HTTP headers based on package extension (ZIP vs EXE)
+$extension = strtolower(pathinfo($packageFilename, PATHINFO_EXTENSION));
+if ($extension === 'zip') {
+    header('Content-Type: application/zip');
+} else {
+    header('Content-Type: application/vnd.microsoft.portable-executable');
+}
+
 header('Content-Disposition: attachment; filename="' . $packageFilename . '"');
 header('Content-Length: ' . filesize($realPackagePath));
 header('Cache-Control: private, no-store, no-cache, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-// 7. Stream binary content directly
+// 7. Stream package content directly
 readfile($realPackagePath);
 exit;

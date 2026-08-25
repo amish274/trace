@@ -1,5 +1,5 @@
 <?php
-// admin/generate_agent.php - Direct EXE Agent Bootstrapper Generation Controller
+// admin/generate_agent.php - Authenticode-Safe Agent Package Generation Controller
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -58,10 +58,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($action === 'generate' || $action 
             ':expires_at' => $expiresAt
         ]);
 
-        // 4. Generate device bootstrapper executable directly in-process
+        // 4. Generate device bootstrapper package (Authenticode-Safe ZIP)
         try {
-            $packagePath = generateAgentPackage($deviceId, $rawToken, SERVER_BASE_URL);
-            $success = 'Windows Agent executable generated successfully!';
+            $packagePath = generateAgentPackage($deviceId, $rawToken, SERVER_BASE_URL, '', 'zip');
+            $success = 'Windows Agent package generated successfully!';
             $stmt->execute([':id' => $deviceId]);
             $device = $stmt->fetch();
         } catch (Exception $e) {
@@ -79,13 +79,29 @@ $tokenStmt = $db->prepare("
 $tokenStmt->execute([':id' => $deviceId]);
 $latestToken = $tokenStmt->fetch();
 
-// Verify generated package details
+// Resolve generated package location (ZIP preference > EXE fallback)
 $sanitizedDevice = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $device['device_name']);
-$packagePath = __DIR__ . "/../storage/packages/System-Utility-{$sanitizedDevice}.exe";
-$packageExists = file_exists($packagePath) && filesize($packagePath) > 0;
+$possiblePackagePaths = [
+    __DIR__ . "/../storage/packages/TeamTraceSetup-{$sanitizedDevice}.zip",
+    __DIR__ . "/../storage/packages/TeamTraceSetup-{$sanitizedDevice}.exe",
+    __DIR__ . "/../storage/packages/System-Utility-{$sanitizedDevice}.exe"
+];
+
+$packagePath = '';
+foreach ($possiblePackagePaths as $candidate) {
+    if (file_exists($candidate) && filesize($candidate) > 0) {
+        $packagePath = $candidate;
+        break;
+    }
+}
+
+$packageExists = !empty($packagePath);
+$packageFilename = $packageExists ? basename($packagePath) : "TeamTraceSetup-{$sanitizedDevice}.zip";
+$packageExtension = strtolower(pathinfo($packageFilename, PATHINFO_EXTENSION));
 $packageSizeKb = $packageExists ? round(filesize($packagePath) / 1024, 2) : 0;
 $packageSizeMb = $packageExists ? round(filesize($packagePath) / (1024 * 1024), 2) : 0;
 $displaySize = $packageSizeMb >= 1.0 ? "{$packageSizeMb} MB" : "{$packageSizeKb} KB";
+$displayType = $packageExtension === 'zip' ? 'Authenticode-Safe ZIP Bundle' : 'One-click Windows Installer';
 
 // Generate signed short-lived download URL (valid 5 minutes)
 $downloadUrl = generateSignedDownloadUrl($deviceId, 5);
@@ -97,8 +113,8 @@ require_once __DIR__ . '/header.php';
 <div style="max-width: 700px; margin: 0 auto;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
         <div>
-            <h1 style="font-size: 1.5rem; margin-bottom: 0.25rem;">Generate Windows Agent</h1>
-            <p style="color: var(--text-muted); font-size:0.9rem;">Generate direct 1-click Windows executable installer for this device.</p>
+            <h1 style="font-size: 1.5rem; margin-bottom: 0.25rem;">Generate Windows Agent Package</h1>
+            <p style="color: var(--text-muted); font-size:0.9rem;">Generate Authenticode-compliant setup package for this device.</p>
         </div>
         <a href="device.php?id=<?= $deviceId ?>" class="btn btn-secondary">← Back to Device</a>
     </div>
@@ -155,15 +171,15 @@ require_once __DIR__ . '/header.php';
         <?php if ($packageExists): ?>
             <div style="background:var(--bg-primary); border:1px solid var(--border-color); padding:1.25rem; border-radius:6px; margin-bottom:1.5rem;">
                 <div style="font-weight:700; color:var(--accent-blue); font-size:1rem; margin-bottom:0.75rem;">
-                    WINDOWS AGENT EXECUTABLE
+                    WINDOWS SETUP PACKAGE
                 </div>
 
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; font-size:0.9rem;">
                     <div><strong>Version:</strong> <?= htmlspecialchars($device['agent_version'] ?: '1.0.0') ?></div>
-                    <div><strong>Package:</strong> System-Utility-<?= htmlspecialchars($sanitizedDevice) ?>.exe</div>
-                    <div><strong>Type:</strong> One-click Windows installer</div>
+                    <div><strong>Package File:</strong> <?= htmlspecialchars($packageFilename) ?></div>
+                    <div><strong>Package Format:</strong> <?= htmlspecialchars($displayType) ?></div>
                     <div><strong>File Size:</strong> <?= $displaySize ?></div>
-                    <div><strong>Server:</strong> <?= htmlspecialchars(SERVER_BASE_URL) ?></div>
+                    <div><strong>Server URL:</strong> <?= htmlspecialchars(SERVER_BASE_URL) ?></div>
                     <div><strong>Enrollment:</strong> <span style="color:#34d399; font-weight:bold;">Ready</span></div>
                 </div>
             </div>
@@ -189,14 +205,14 @@ require_once __DIR__ . '/header.php';
 
             <div style="display:flex; gap: 1rem;">
                 <a href="<?= htmlspecialchars($downloadUrl) ?>" class="btn btn-primary" style="flex:2; justify-content:center; padding:0.8rem;">
-                    ↓ DOWNLOAD WINDOWS AGENT
+                    ↓ DOWNLOAD WINDOWS PACKAGE
                 </a>
                 <form method="POST" action="generate_agent.php" style="flex:1;">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                     <input type="hidden" name="device_id" value="<?= $deviceId ?>">
                     <input type="hidden" name="action" value="regenerate">
-                    <button type="submit" class="btn btn-secondary" style="width:100%; justify-content:center; padding:0.8rem;" onclick="return confirm('Regenerate executable? This will invalidate any previously downloaded unused installer.');">
-                        ↺ REGENERATE AGENT
+                    <button type="submit" class="btn btn-secondary" style="width:100%; justify-content:center; padding:0.8rem;" onclick="return confirm('Regenerate package? This will invalidate any previously generated unused installer.');">
+                        ↺ REGENERATE PACKAGE
                     </button>
                 </form>
             </div>
@@ -206,7 +222,7 @@ require_once __DIR__ . '/header.php';
                 <input type="hidden" name="device_id" value="<?= $deviceId ?>">
                 <input type="hidden" name="action" value="generate">
                 <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:0.85rem;">
-                    ⚡ GENERATE WINDOWS AGENT
+                    ⚡ GENERATE WINDOWS PACKAGE
                 </button>
             </form>
         <?php endif; ?>

@@ -1,11 +1,11 @@
 <?php
-// tools/test_upgrade.php - Verification Suite for Direct EXE Bootstrapper & Zero-Touch Enrollment
+// tools/test_upgrade.php - Verification Suite for Direct Bootstrapper & Zero-Touch Enrollment
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/db.php';
 
 echo "=====================================================\n";
-echo "   TeamTrace Direct EXE Bootstrapper Test Suite      \n";
+echo "   TeamTrace Direct Bootstrapper Test Suite          \n";
 echo "=====================================================\n\n";
 
 $db = getDbConnection();
@@ -29,8 +29,8 @@ $insSet->execute([':dev_id' => $deviceId]);
 
 echo "SUCCESS (Device ID: {$deviceId}, Name: {$devName})\n";
 
-// 2. Generate One-Time Token and Build Direct EXE Bootstrapper
-echo "\n[2/8] Generating One-Time Token & Direct EXE Bootstrapper... ";
+// 2. Generate One-Time Token and Build Package
+echo "\n[2/8] Generating One-Time Token & Package... ";
 $startTime = microtime(true);
 $rawToken = bin2hex(random_bytes(32));
 $tokenHash = hash('sha256', $rawToken);
@@ -39,27 +39,24 @@ $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
 $insTok = $db->prepare("INSERT INTO device_enrollment_tokens (device_id, token_hash, status, expires_at) VALUES (:dev_id, :hash, 'ready', :exp)");
 $insTok->execute([':dev_id' => $deviceId, ':hash' => $tokenHash, ':exp' => $expiresAt]);
 
-$sanitized = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $devName);
-$packageExe = __DIR__ . "/../storage/packages/System-Utility-{$sanitized}.exe";
-
 require_once __DIR__ . '/generate_agent.php';
 try {
-    generateAgentPackage($deviceId, $rawToken, SERVER_BASE_URL, $packageExe);
+    $packagePath = generateAgentPackage($deviceId, $rawToken, SERVER_BASE_URL, '', 'zip');
     $genTime = round(microtime(true) - $startTime, 4);
-    $sizeKb = round(filesize($packageExe) / 1024, 2);
-    echo "SUCCESS (Generation Time: {$genTime} sec)\n    Executable File: {$packageExe} ({$sizeKb} KB)\n";
+    $sizeKb = round(filesize($packagePath) / 1024, 2);
+    echo "SUCCESS (Generation Time: {$genTime} sec)\n    Package File: {$packagePath} ({$sizeKb} KB)\n";
 } catch (Exception $e) {
     echo "FAILED: " . $e->getMessage() . "\n";
     exit(1);
 }
 
-// 3. Verify Direct EXE Payload using tools/verify_agent.php
-echo "\n[3/8] Verifying Direct EXE Payload & PE Format... ";
+// 3. Verify Package Payload using tools/verify_agent.php
+echo "\n[3/8] Verifying Package Payload & Authenticode Format... ";
 $verifyCmd = sprintf(
     '%s %s --package=%s',
     PHP_BINARY,
     escapeshellarg(__DIR__ . '/verify_agent.php'),
-    escapeshellarg($packageExe)
+    escapeshellarg($packagePath)
 );
 exec($verifyCmd, $vOut, $vRet);
 
@@ -167,8 +164,8 @@ if ($revCode === 401) {
     exit(1);
 }
 
-@unlink($packageExe);
+@unlink($packagePath);
 
 echo "\n=====================================================\n";
-echo "   All 8 Direct EXE Bootstrapper Tests PASSED!        \n";
+echo "   All 8 Direct Bootstrapper Tests PASSED!            \n";
 echo "=====================================================\n";
