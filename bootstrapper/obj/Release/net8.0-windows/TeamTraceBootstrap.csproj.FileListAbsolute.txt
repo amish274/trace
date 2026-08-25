@@ -1,0 +1,15 @@
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/bin/Release/net8.0-windows/TeamTraceBootstrap
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/bin/Release/net8.0-windows/TeamTraceBootstrap.deps.json
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/bin/Release/net8.0-windows/TeamTraceBootstrap.runtimeconfig.json
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/bin/Release/net8.0-windows/TeamTraceBootstrap.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/bin/Release/net8.0-windows/TeamTraceBootstrap.pdb
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/TeamTraceBootstrap.GeneratedMSBuildEditorConfig.editorconfig
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/TeamTraceBootstrap.AssemblyInfoInputs.cache
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/TeamTraceBootstrap.AssemblyInfo.cs
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/TeamTraceBootstrap.csproj.CoreCompileInputs.cache
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/TeamTraceBootstrap.sourcelink.json
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/TeamTraceBootstrap.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/refint/TeamTraceBootstrap.dll
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/TeamTraceBootstrap.pdb
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/TeamTraceBootstrap.genruntimeconfig.cache
+/Applications/MAMP/htdocs/ethnicboost/Trace/bootstrapper/obj/Release/net8.0-windows/ref/TeamTraceBootstrap.dll

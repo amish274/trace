@@ -36,6 +36,16 @@ namespace MonitorAgent
                 e.SetObserved();
             };
 
+            // Check for diagnostic mode CLI flag
+            foreach (var arg in args)
+            {
+                if (arg.Equals("--diagnose", StringComparison.OrdinalIgnoreCase) || arg.Equals("-d", StringComparison.OrdinalIgnoreCase))
+                {
+                    RunDiagnosticMode(args);
+                    return;
+                }
+            }
+
             try
             {
                 AppLogger.LogInfo("=== MonitorAgent Startup Initialized ===");
@@ -300,7 +310,7 @@ namespace MonitorAgent
         private static async Task MonitoringLoop(CancellationToken token)
         {
             int configPollCounter = 0;
-            AppLogger.LogInfo("MonitoringLoop started.");
+            AppLogger.LogInfo("SCREENSHOT_WORKER_STARTED: MonitoringLoop started.");
 
             while (!token.IsCancellationRequested)
             {
@@ -407,6 +417,112 @@ namespace MonitorAgent
 
                 await Task.Delay(1000, token);
             }
+        }
+
+        private static void RunDiagnosticMode(string[] args)
+        {
+            Console.WriteLine("=====================================================");
+            Console.WriteLine("   System Utility Diagnostic Mode (--diagnose)      ");
+            Console.WriteLine("=====================================================");
+
+            AppConfig.Load();
+            _apiClient = new ApiClient();
+
+            // Perform enrollment check if required
+            if (string.IsNullOrEmpty(AppConfig.Current.DeviceToken))
+            {
+                var bootstrap = AppConfig.ReadBootstrapFile();
+                if (bootstrap != null && !string.IsNullOrEmpty(bootstrap.EnrollmentToken))
+                {
+                    if (!string.IsNullOrEmpty(bootstrap.ServerBaseUrl)) AppConfig.Current.ServerBaseUrl = bootstrap.ServerBaseUrl;
+                    if (!string.IsNullOrEmpty(bootstrap.DeviceName)) AppConfig.Current.DeviceName = bootstrap.DeviceName;
+
+                    bool enrolled = _apiClient.RegisterAsync(bootstrap.EnrollmentToken).GetAwaiter().GetResult();
+                    if (enrolled)
+                    {
+                        AppConfig.ClearBootstrapFile();
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(AppConfig.Current.DeviceToken))
+            {
+                _apiClient.FetchConfigAsync().GetAwaiter().GetResult();
+            }
+
+            bool capturePass = false;
+            bool jpegPass = false;
+            int jpegSize = 0;
+            byte[]? jpegData = null;
+
+            try
+            {
+                jpegData = ScreenCapturer.CaptureScreenToJpegMemory(
+                    AppConfig.Current.ScreenshotWidth,
+                    AppConfig.Current.ScreenshotHeight,
+                    AppConfig.Current.ScreenshotQuality
+                );
+
+                if (jpegData != null)
+                {
+                    capturePass = true;
+                    if (jpegData.Length > 0)
+                    {
+                        jpegPass = true;
+                        jpegSize = jpegData.Length;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogError("Diagnostic Mode: Screenshot capture exception.", ex);
+            }
+
+            bool uploadPass = false;
+            int httpStatus = 0;
+            bool apiResultPass = false;
+            int screenshotId = 0;
+
+            if (jpegPass && jpegData != null)
+            {
+                try
+                {
+                    int idleSeconds = IdleDetector.GetIdleSeconds();
+                    bool active = IdleDetector.IsActive(AppConfig.Current.IdleThresholdSeconds);
+                    string statusStr = active ? "ACTIVE" : "IDLE";
+
+                    var uploadRes = _apiClient.UploadScreenshotDetailsAsync(jpegData, statusStr, idleSeconds).GetAwaiter().GetResult();
+                    httpStatus = uploadRes.StatusCode;
+                    if (uploadRes.StatusCode >= 200 && uploadRes.StatusCode < 300)
+                    {
+                        uploadPass = true;
+                    }
+                    if (uploadRes.Success)
+                    {
+                        apiResultPass = true;
+                        screenshotId = uploadRes.ScreenshotId;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("Diagnostic Mode: Upload exception.", ex);
+                }
+            }
+
+            Console.WriteLine($"CAPTURE: {(capturePass ? "PASS" : "FAIL")}");
+            Console.WriteLine($"JPEG: {(jpegPass ? $"PASS ({jpegSize} bytes)" : "FAIL")}");
+            Console.WriteLine($"DEVICE ID: {AppConfig.Current.DeviceId}");
+            Console.WriteLine($"SERVER URL: {AppConfig.Current.ServerBaseUrl}");
+            Console.WriteLine($"UPLOAD: {(uploadPass ? "PASS" : "FAIL")}");
+            Console.WriteLine($"HTTP STATUS: {httpStatus}");
+            Console.WriteLine($"API RESULT: {(apiResultPass ? "PASS" : "FAIL")}");
+            Console.WriteLine($"SCREENSHOT ID: {screenshotId}");
+            Console.WriteLine("=====================================================");
+
+            AppLogger.LogInfo($"DIAGNOSTIC_MODE_COMPLETED capture={capturePass} jpeg_bytes={jpegSize} device_id={AppConfig.Current.DeviceId} upload={uploadPass} status={httpStatus} api_result={apiResultPass} screenshot_id={screenshotId}");
+
+            bool overallPass = capturePass && jpegPass && uploadPass && apiResultPass && (screenshotId > 0);
+            Environment.Exit(overallPass ? 0 : 1);
         }
     }
 }

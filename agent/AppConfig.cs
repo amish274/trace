@@ -9,6 +9,7 @@ namespace MonitorAgent
     {
         public string ServerBaseUrl { get; set; } = "https://ethnicboost.com/Trace";
         public string DeviceToken { get; set; } = "";
+        public int DeviceId { get; set; } = 0;
         public string DeviceName { get; set; } = Environment.MachineName;
         public string OperatingSystem { get; set; } = Environment.OSVersion.ToString();
         public string AgentVersion { get; set; } = "1.0.0";

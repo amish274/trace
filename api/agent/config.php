@@ -31,6 +31,7 @@ $updateSeen->execute([':id' => $device['id']]);
 
 respondJson([
     'success' => true,
+    'device_id' => (int)$device['id'],
     'config' => [
         'monitoring_enabled' => (bool)$settings['monitoring_enabled'],
         'screenshot_enabled' => (bool)$settings['screenshot_enabled'],

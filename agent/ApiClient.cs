@@ -67,8 +67,12 @@ namespace MonitorAgent
                     if (root.TryGetProperty("success", out var succ) && succ.GetBoolean())
                     {
                         AppConfig.Current.DeviceToken = root.GetProperty("device_token").GetString() ?? "";
+                        if (root.TryGetProperty("device_id", out var devIdProp))
+                        {
+                            AppConfig.Current.DeviceId = devIdProp.GetInt32();
+                        }
                         AppConfig.Save();
-                        AppLogger.LogInfo("RegisterAsync SUCCESS: Device token acquired and saved.");
+                        AppLogger.LogInfo($"RegisterAsync SUCCESS: Device token acquired and saved (device_id={AppConfig.Current.DeviceId}).");
                         return true;
                     }
                     else
@@ -107,15 +111,23 @@ namespace MonitorAgent
                     using var doc = JsonDocument.Parse(respJson);
                     var root = doc.RootElement;
 
-                    if (root.GetProperty("success").GetBoolean() && root.TryGetProperty("config", out var config))
+                    if (root.GetProperty("success").GetBoolean())
                     {
-                        AppConfig.Current.MonitoringEnabled = config.GetProperty("monitoring_enabled").GetBoolean();
-                        AppConfig.Current.ScreenshotEnabled = config.GetProperty("screenshot_enabled").GetBoolean();
-                        AppConfig.Current.ScreenshotIntervalSeconds = config.GetProperty("screenshot_interval_seconds").GetInt32();
-                        AppConfig.Current.ScreenshotQuality = config.GetProperty("screenshot_quality").GetInt32();
-                        AppConfig.Current.ScreenshotWidth = config.GetProperty("screenshot_width").GetInt32();
-                        AppConfig.Current.ScreenshotHeight = config.GetProperty("screenshot_height").GetInt32();
-                        AppConfig.Current.IdleThresholdSeconds = config.GetProperty("idle_threshold_seconds").GetInt32();
+                        if (root.TryGetProperty("device_id", out var devIdProp))
+                        {
+                            AppConfig.Current.DeviceId = devIdProp.GetInt32();
+                        }
+
+                        if (root.TryGetProperty("config", out var config))
+                        {
+                            AppConfig.Current.MonitoringEnabled = config.GetProperty("monitoring_enabled").GetBoolean();
+                            AppConfig.Current.ScreenshotEnabled = config.GetProperty("screenshot_enabled").GetBoolean();
+                            AppConfig.Current.ScreenshotIntervalSeconds = config.GetProperty("screenshot_interval_seconds").GetInt32();
+                            AppConfig.Current.ScreenshotQuality = config.GetProperty("screenshot_quality").GetInt32();
+                            AppConfig.Current.ScreenshotWidth = config.GetProperty("screenshot_width").GetInt32();
+                            AppConfig.Current.ScreenshotHeight = config.GetProperty("screenshot_height").GetInt32();
+                            AppConfig.Current.IdleThresholdSeconds = config.GetProperty("idle_threshold_seconds").GetInt32();
+                        }
                         
                         AppConfig.Save();
                         return true;
@@ -164,55 +176,90 @@ namespace MonitorAgent
             return false;
         }
 
-        public async Task<bool> UploadScreenshotAsync(byte[] jpegBytes, string activityStatus, int idleSeconds)
+        public async Task<ScreenshotUploadResult> UploadScreenshotDetailsAsync(byte[] jpegBytes, string activityStatus, int idleSeconds)
         {
-            if (jpegBytes == null || jpegBytes.Length == 0) return false;
-
-            int attempts = 0;
-            const int maxAttempts = 3;
-
-            while (attempts < maxAttempts)
+            var result = new ScreenshotUploadResult();
+            if (jpegBytes == null || jpegBytes.Length == 0)
             {
-                attempts++;
-                try
+                result.ErrorMessage = "JPEG bytes are null or empty.";
+                AppLogger.LogWarn("SCREENSHOT_UPLOAD_FAILED: JPEG bytes are null or empty.");
+                return result;
+            }
+
+            try
+            {
+                SetAuthHeader();
+                string url = $"{AppConfig.Current.ServerBaseUrl.TrimEnd('/')}/api/agent/screenshot.php";
+                bool hasAuthHeader = !string.IsNullOrEmpty(AppConfig.Current.DeviceToken);
+
+                AppLogger.LogInfo($"SCREENSHOT_UPLOAD_STARTED device_id={AppConfig.Current.DeviceId} url={url} auth_header_present={hasAuthHeader}");
+
+                using (var multipartContent = new MultipartFormDataContent())
                 {
-                    SetAuthHeader();
-                    string url = $"{AppConfig.Current.ServerBaseUrl.TrimEnd('/')}/api/agent/screenshot.php";
+                    var imageContent = new ByteArrayContent(jpegBytes);
+                    imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+                    multipartContent.Add(imageContent, "screenshot", $"shot_{DateTime.UtcNow.Ticks}.jpg");
 
-                    using (var multipartContent = new MultipartFormDataContent())
+                    multipartContent.Add(new StringContent(activityStatus), "activity_status");
+                    multipartContent.Add(new StringContent(idleSeconds.ToString()), "idle_seconds");
+                    multipartContent.Add(new StringContent(DateTime.UtcNow.ToString("o")), "captured_at");
+
+                    var response = await _httpClient.PostAsync(url, multipartContent);
+                    result.StatusCode = (int)response.StatusCode;
+                    result.ResponseBody = await response.Content.ReadAsStringAsync();
+
+                    AppLogger.LogInfo($"SCREENSHOT_UPLOAD_RESPONSE status={result.StatusCode}");
+
+                    if (response.IsSuccessStatusCode)
                     {
-                        var imageContent = new ByteArrayContent(jpegBytes);
-                        imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-                        multipartContent.Add(imageContent, "screenshot", $"shot_{DateTime.UtcNow.Ticks}.jpg");
-
-                        multipartContent.Add(new StringContent(activityStatus), "activity_status");
-                        multipartContent.Add(new StringContent(idleSeconds.ToString()), "idle_seconds");
-                        multipartContent.Add(new StringContent(DateTime.UtcNow.ToString("o")), "captured_at");
-
-                        var response = await _httpClient.PostAsync(url, multipartContent);
-                        if (response.IsSuccessStatusCode)
+                        using var doc = JsonDocument.Parse(result.ResponseBody);
+                        var root = doc.RootElement;
+                        if (root.TryGetProperty("success", out var succ) && succ.GetBoolean())
                         {
-                            AppLogger.LogInfo($"UploadScreenshotAsync SUCCESS on attempt {attempts}.");
-                            return true;
+                            result.Success = true;
+                            if (root.TryGetProperty("screenshot_id", out var sidProp))
+                            {
+                                result.ScreenshotId = sidProp.GetInt32();
+                            }
+                            AppLogger.LogInfo($"SCREENSHOT_UPLOAD_SUCCESS screenshot_id={result.ScreenshotId}");
+                            return result;
                         }
                         else
                         {
-                            AppLogger.LogWarn($"UploadScreenshotAsync attempt {attempts} HTTP status: {(int)response.StatusCode}");
+                            string err = root.TryGetProperty("error", out var errProp) ? errProp.GetString() ?? "Logic error" : "Logic error";
+                            result.ErrorMessage = err;
+                            AppLogger.LogWarn($"SCREENSHOT_UPLOAD_FAILED API logic error: {err}");
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    AppLogger.LogError($"UploadScreenshotAsync attempt {attempts} exception.", ex);
-                }
-
-                if (attempts < maxAttempts)
-                {
-                    await Task.Delay(2000);
+                    else
+                    {
+                        result.ErrorMessage = $"HTTP {result.StatusCode}";
+                        AppLogger.LogWarn($"SCREENSHOT_UPLOAD_FAILED HTTP status={result.StatusCode} response={result.ResponseBody}");
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                result.ErrorMessage = ex.Message;
+                AppLogger.LogError("SCREENSHOT_UPLOAD_FAILED Exception encountered during screenshot upload.", ex);
+            }
 
-            return false;
+            return result;
         }
+
+        public async Task<bool> UploadScreenshotAsync(byte[] jpegBytes, string activityStatus, int idleSeconds)
+        {
+            var res = await UploadScreenshotDetailsAsync(jpegBytes, activityStatus, idleSeconds);
+            return res.Success;
+        }
+    }
+
+    public class ScreenshotUploadResult
+    {
+        public bool Success { get; set; }
+        public int StatusCode { get; set; }
+        public int ScreenshotId { get; set; }
+        public string ResponseBody { get; set; } = "";
+        public string ErrorMessage { get; set; } = "";
     }
 }

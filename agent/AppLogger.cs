@@ -15,7 +15,7 @@ namespace MonitorAgent
                 string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
                 if (!string.IsNullOrEmpty(programData))
                 {
-                    string dir = Path.Combine(programData, "TeamTrace", "logs");
+                    string dir = Path.Combine(programData, "SystemUtility", "logs");
                     if (!Directory.Exists(dir))
                     {
                         Directory.CreateDirectory(dir);
@@ -25,8 +25,22 @@ namespace MonitorAgent
             }
             catch
             {
-                // Fallback to LocalApplicationData (%LocalAppData%)
+                // Fallback
             }
+
+            try
+            {
+                string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+                if (!string.IsNullOrEmpty(programData))
+                {
+                    string legacyDir = Path.Combine(programData, "TeamTrace", "logs");
+                    if (Directory.Exists(legacyDir))
+                    {
+                        return Path.Combine(legacyDir, "MonitorAgent.log");
+                    }
+                }
+            }
+            catch { }
 
             try
             {

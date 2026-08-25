@@ -15,19 +15,20 @@ namespace MonitorAgent
         /// </summary>
         public static byte[]? CaptureScreenToJpegMemory(int targetWidth, int targetHeight, int jpegQuality)
         {
+            AppLogger.LogInfo("SCREENSHOT_CAPTURE_STARTED");
             try
             {
                 Screen? primary = Screen.PrimaryScreen;
                 if (primary == null)
                 {
-                    AppLogger.LogWarn("Screen capture skipped: Screen.PrimaryScreen is null.");
+                    AppLogger.LogWarn("SCREENSHOT_CAPTURE_FAILED: Screen.PrimaryScreen is null.");
                     return null;
                 }
 
                 Rectangle bounds = primary.Bounds;
                 if (bounds.Width <= 0 || bounds.Height <= 0)
                 {
-                    AppLogger.LogWarn($"Screen capture skipped: invalid screen bounds ({bounds.Width}x{bounds.Height}).");
+                    AppLogger.LogWarn($"SCREENSHOT_CAPTURE_FAILED: invalid screen bounds ({bounds.Width}x{bounds.Height}).");
                     return null;
                 }
 
@@ -54,7 +55,7 @@ namespace MonitorAgent
                             ImageCodecInfo? jpegEncoder = GetEncoder(ImageFormat.Jpeg);
                             if (jpegEncoder == null)
                             {
-                                AppLogger.LogWarn("Screen capture skipped: JPEG encoder codec not found.");
+                                AppLogger.LogWarn("SCREENSHOT_CAPTURE_FAILED: JPEG encoder codec not found.");
                                 return null;
                             }
 
@@ -65,7 +66,7 @@ namespace MonitorAgent
                             }
 
                             byte[] result = ms.ToArray();
-                            AppLogger.LogInfo($"Captured screenshot successfully ({bounds.Width}x{bounds.Height}, JPEG size: {result.Length} bytes).");
+                            AppLogger.LogInfo($"SCREENSHOT_CAPTURE_SUCCESS size={result.Length}");
                             return result;
                         }
                     }
@@ -80,7 +81,7 @@ namespace MonitorAgent
             }
             catch (Exception ex)
             {
-                AppLogger.LogError("Screen capture exception encountered.", ex);
+                AppLogger.LogError("SCREENSHOT_CAPTURE_FAILED: Exception encountered during capture.", ex);
                 return null;
             }
         }
